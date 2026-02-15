@@ -49,6 +49,8 @@ to quickly create a Cobra application.`,
 			os.Exit(1)
 		}
 
+		var tree_entries []internals.Entry
+
 		for _, entry := range entries {
 			// for now, we will only target the fiels "blobs"
 			if entry.Name() == "." || entry.Name() == ".." || entry.IsDir() {
@@ -77,9 +79,27 @@ to quickly create a Cobra application.`,
 			}
 
 			if err := db.Store(&blob); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Can't store the current object - %v\n", err)
+				fmt.Fprintf(os.Stderr, "Error: Can't store the current object/blob - %v\n", err)
 				os.Exit(1)
 			}
+
+			tree_entry := internals.Entry{}
+			if err := tree_entry.New(blob.GetOid(), file.Name()); err != nil {
+				fmt.Fprintf(os.Stderr, "Error: Can't create an entry - %v\n", err)
+				os.Exit(1)
+			}
+
+			tree_entries = append(tree_entries, tree_entry)
+		}
+
+		tree := internals.Tree{}
+		if err := tree.New(tree_entries); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Can't create a tree - %v\n", err)
+			os.Exit(1)
+		}
+		if err := db.Store(&tree); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Can't store the current object/tree - %v\n", err)
+			os.Exit(1)
 		}
 	},
 }
