@@ -15,7 +15,9 @@ func (t *Tree) New(data []Entry) error {
 
 	return nil
 }
-
+func (b *Tree) Type() string {
+	return "tree"
+}
 func (t *Tree) GetOid() []byte {
 	return t.oid
 }

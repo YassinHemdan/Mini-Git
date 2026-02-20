@@ -1,6 +1,3 @@
-/*
-Copyright © 2026 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -10,11 +7,19 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 )
 
-// commitCmd represents the commit command
+type ConfigVariables struct {
+	JIT_AUTHOR_NAME  string
+	JIT_AUTHOR_EMAIL string
+}
+
+var (
+	message string
+)
 var commitCmd = &cobra.Command{
 	Use:   "commit",
 	Short: "A brief description of your command",
@@ -27,6 +32,16 @@ to quickly create a Cobra application.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 
+		config := ConfigVariables{}
+		config.JIT_AUTHOR_NAME = os.Getenv("G_AUTHOR_NAME")
+		config.JIT_AUTHOR_EMAIL = os.Getenv("G_AUTHOR_EMAIL")
+
+		author := internals.Author{}
+
+		if err := author.New(config.JIT_AUTHOR_NAME, config.JIT_AUTHOR_EMAIL, time.Now()); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: failed to create a new author - %v\n", err)
+			os.Exit(1)
+		}
 		root_dir, err := os.Getwd()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: Can't fetch current directory - %v\n", err)
@@ -101,9 +116,25 @@ to quickly create a Cobra application.`,
 			fmt.Fprintf(os.Stderr, "Error: Can't store the current object/tree - %v\n", err)
 			os.Exit(1)
 		}
+
+		commit := internals.Commit{}
+		if err := commit.New(nil, tree.GetOid(), message, author, author); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: failed to create a commit object - %v\n", err)
+			os.Exit(1)
+		}
+
+		if err := db.Store(&commit); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: failed to store the commit object - %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("[(root_commit)%x] %s\n", commit.GetOid(), commit.GetMessage())
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(commitCmd)
+
+	commitCmd.Flags().StringVarP(&message, "message", "m", "", "Use this given <msg> as the commit message.")
 }
+// 2d95381ffa54a4b34f9c2b8d2e365b6ec083f80c

@@ -28,7 +28,7 @@ func (db *Database) New(path string) error {
 
 func (db *Database) Store(object Object) error {
 	// prepare the data that we want to encode and hash
-	data := []byte(fmt.Sprintf("%T %d\x00", object, len(object.ToString())))
+	data := []byte(fmt.Sprintf("%s %d\x00", object.Type(), len(object.ToString())))
 	data = append(data, object.ToString()...)
 
 	// encode the data

@@ -1,12 +1,12 @@
 package internals
 
 type Blob struct {
-	oid []byte // object id --> the content of the blob will be hashed to generate the oid
+	oid  []byte // object id --> the content of the blob will be hashed to generate the oid
 	data []byte // the content of the blob
 
 }
 
-func (b *Blob) New(data []byte) error{
+func (b *Blob) New(data []byte) error {
 	b.data = data
 	return nil
 }
@@ -20,4 +20,8 @@ func (b *Blob) GetOid() []byte {
 
 func (b *Blob) SetOid(oid []byte) {
 	b.oid = oid
+}
+
+func (b *Blob) Type() string {
+	return "blob"
 }
