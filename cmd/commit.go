@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 )
 
@@ -32,7 +33,11 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
-
+		err := godotenv.Load()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: failed to load env variables - %v\n", err)
+			os.Exit(1)
+		}
 		config := ConfigVariables{}
 		config.JIT_AUTHOR_NAME = os.Getenv("G_AUTHOR_NAME")
 		config.JIT_AUTHOR_EMAIL = os.Getenv("G_AUTHOR_EMAIL")
@@ -160,5 +165,3 @@ func init() {
 
 	commitCmd.Flags().StringVarP(&message, "message", "m", "", "Use this given <msg> as the commit message.")
 }
-
-// 2d95381ffa54a4b34f9c2b8d2e365b6ec083f80c

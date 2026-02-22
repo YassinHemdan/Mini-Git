@@ -51,5 +51,5 @@ func (c *Commit) ToString() string {
 	//
 	// Initial commit
 
-	return fmt.Sprintf("tree %x\n%s\nauthor %s\ncommitter %s\n\n%s", c.tree_oid, parent, c.author.ToString(), c.committer.ToString(), c.message)
+	return fmt.Sprintf("tree %x\n%sauthor %s\ncommitter %s\n\n%s\n", c.tree_oid, parent, c.author.ToString(), c.committer.ToString(), c.message)
 }

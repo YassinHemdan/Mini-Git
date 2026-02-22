@@ -2,6 +2,7 @@ package internals
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -47,7 +48,7 @@ func (r *Refs) ReadHead() ([]byte, error) {
 	}
 
 	file.Close()
-	return file_content.Bytes(), nil
+	return hex.DecodeString(file_content.String())
 }
 
 func (r *Refs) headPath() string {
