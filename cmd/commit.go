@@ -156,7 +156,13 @@ to quickly create a Cobra application.`,
 		}
 
 		short_id := hex.EncodeToString(commit.GetOid())[:7]
-		fmt.Printf("[(root_commit)%s] %s\n", short_id, commit.GetMessage())
+		is_root := (func() string {
+			if len(parent_id) == 0 {
+				return "(root_commit) "
+			}
+			return ""
+		})()
+		fmt.Printf("[master %s%s] %s\n", is_root, short_id, commit.GetMessage())
 	},
 }
 

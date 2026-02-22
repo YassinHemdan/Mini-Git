@@ -49,6 +49,11 @@ func (db *Database) writeObject(oid, data []byte) error {
 	object_dir := strings.Join([]string{db.path, oid_hex[:2]}, string(os.PathSeparator))     //.git/objects/xx
 	object_path := strings.Join([]string{object_dir, oid_hex[2:]}, string(os.PathSeparator)) // .git/objects/xx/ooooooo
 
+	// if a file exists already, don't write it again
+	if _, err := os.Stat(object_path); err == nil {
+		return nil
+	}
+
 	if err := os.MkdirAll(object_dir, JitDefaultPermission); err != nil {
 		return err
 	}
@@ -80,7 +85,7 @@ func (db *Database) writeObject(oid, data []byte) error {
 	// move the temp file to the obj file
 
 	fmt.Println(object_path) // just for debugging purposes
-	
+
 	return os.Rename(temp_file.Name(), object_path)
 }
 

@@ -9,6 +9,14 @@ import (
 	"strings"
 )
 
+type lockDenied struct {
+	message string
+}
+
+func (l *lockDenied) Error() string {
+	return fmt.Sprintf("lock request has beed denied: %s", l.message)
+}
+
 type Refs struct {
 	path_name string // the jit path. I don't like it
 }
@@ -20,17 +28,26 @@ func (r *Refs) New(path_name string) error {
 }
 
 func (r *Refs) UpdateHead(oid []byte) error {
-	flags := os.O_WRONLY | os.O_CREATE | os.O_TRUNC
-	file, err := os.OpenFile(r.headPath(), flags, JitDefaultPermission)
+	lock_file := LockFile{}
+	if err := lock_file.New(r.headPath()); err != nil {
+		return fmt.Errorf("Error: Couldn't make a new lockfile - %v", err)
+	}
 
+	success, err := lock_file.HoldForUpdate()
 	if err != nil {
-		return fmt.Errorf("Error: Couldn't write to HEAD file - %v", err)
+		return err
+	}
+	if !success {
+		return &lockDenied{message: "Could not acquire lock on file: " + r.headPath()}
 	}
 
-	if _, err := fmt.Fprintf(file, "%x", oid); err != nil {
-		return fmt.Errorf("Error: Couldn't write to HEAD file - %v", err)
+	if err := lock_file.Write(fmt.Sprintf("%x\n", oid)); err != nil {
+		return fmt.Errorf("Error: Couldn't make write to lockfile - %v", err)
 	}
 
+	if err := lock_file.Save(); err != nil {
+		return fmt.Errorf("Error: Couldn't make save the lockfile - %v", err)
+	}
 	return nil
 }
 
@@ -48,7 +65,9 @@ func (r *Refs) ReadHead() ([]byte, error) {
 	}
 
 	file.Close()
-	return hex.DecodeString(file_content.String())
+
+	// str_file_content := file_content.String()[:]
+	return hex.DecodeString(strings.TrimSpace(file_content.String()))
 }
 
 func (r *Refs) headPath() string {
