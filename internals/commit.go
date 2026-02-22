@@ -36,12 +36,12 @@ func (c *Commit) GetMessage() string {
 	return c.message
 }
 func (c *Commit) ToString() string {
-	parent := func() string {
-		if c.parent_oid == nil {
+	parent := (func() string {
+		if len(c.parent_oid) == 0 {
 			return ""
 		}
 		return fmt.Sprintf("parent %x\n", c.parent_oid)
-	}
+	})()
 
 	// Sample Output
 	// tree 1298djdhahgs89172hdga
@@ -51,5 +51,5 @@ func (c *Commit) ToString() string {
 	//
 	// Initial commit
 
-	return fmt.Sprintf("tree %x\n%s\nauthor %s\ncommitter %s\n\n%s", c.tree_oid, parent(), c.author.ToString(), c.committer.ToString(), c.message)
+	return fmt.Sprintf("tree %x\n%s\nauthor %s\ncommitter %s\n\n%s", c.tree_oid, parent, c.author.ToString(), c.committer.ToString(), c.message)
 }

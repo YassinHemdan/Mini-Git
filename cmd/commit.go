@@ -3,6 +3,7 @@ package cmd
 import (
 	"Jit/internals"
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -42,7 +43,9 @@ to quickly create a Cobra application.`,
 			fmt.Fprintf(os.Stderr, "Error: failed to create a new author - %v\n", err)
 			os.Exit(1)
 		}
+
 		root_dir, err := os.Getwd()
+
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: Can't fetch current directory - %v\n", err)
 			os.Exit(1)
@@ -117,8 +120,22 @@ to quickly create a Cobra application.`,
 			os.Exit(1)
 		}
 
+		refs := internals.Refs{}
+
+		if err := refs.New(jit_dir); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: failed to create a Refs - %v\n", err)
+			os.Exit(1)
+		}
+
+		parent_id, err := refs.ReadHead()
+
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: failed to read HEAD file - %v\n", err)
+			os.Exit(1)
+		}
+
 		commit := internals.Commit{}
-		if err := commit.New(nil, tree.GetOid(), message, author, author); err != nil {
+		if err := commit.New(parent_id, tree.GetOid(), message, author, author); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to create a commit object - %v\n", err)
 			os.Exit(1)
 		}
@@ -128,7 +145,13 @@ to quickly create a Cobra application.`,
 			os.Exit(1)
 		}
 
-		fmt.Printf("[(root_commit)%x] %s\n", commit.GetOid(), commit.GetMessage())
+		if err := refs.UpdateHead(commit.GetOid()); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: failed to update HEAD file - %v\n", err)
+			os.Exit(1)
+		}
+
+		short_id := hex.EncodeToString(commit.GetOid())[:7]
+		fmt.Printf("[(root_commit)%s] %s\n", short_id, commit.GetMessage())
 	},
 }
 
@@ -137,4 +160,5 @@ func init() {
 
 	commitCmd.Flags().StringVarP(&message, "message", "m", "", "Use this given <msg> as the commit message.")
 }
+
 // 2d95381ffa54a4b34f9c2b8d2e365b6ec083f80c
