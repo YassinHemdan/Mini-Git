@@ -37,7 +37,7 @@ func (w *Workspace) GetFiles() ([]os.DirEntry, error) {
 
 func (w *Workspace) GetFileContent(file *os.File) ([]byte, error) {
 	var file_content bytes.Buffer
-
+	
 	if _, err := io.Copy(&file_content, file); err != nil {
 		return file_content.Bytes(), err
 	}

@@ -27,8 +27,6 @@ func (t *Tree) SetOid(oid []byte) {
 }
 
 func (t *Tree) ToString() string {
-	// we need to serialize our tree in a specific way to use it when storing it
-
 	data_copy := make([]Entry, len(t.data))
 	copy(data_copy, t.data)
 
@@ -41,16 +39,10 @@ func (t *Tree) ToString() string {
 		return 0
 	})
 
-	// data => <type> <size>\x00<mode> <name>\x00<oid><mode> <name>\x00<oid><mode> <name>\x00<oid>....
-
 	var entries []byte
 	for _, entry := range data_copy {
-		// Example: 100644 blob.go\x00f2a37562jhfh23782732ghj8
-		// Example: 100644 cmd\x00f2a37562jhfh23782732ghj8
-		entries = append(entries, fmt.Sprintf("10%04o %s%x", JitDefaultPermission, entry.GetName(), 0x00)...)
+		entries = append(entries, fmt.Sprintf("10%04o %s%x", entry.GetMode(), entry.GetName(), 0x00)...)
 		entries = append(entries, entry.GetOid()...)
 	}
-
-	// fmt.Println(len(string(entries) + "*internals.Tree 312"))
 	return string(entries)
 }

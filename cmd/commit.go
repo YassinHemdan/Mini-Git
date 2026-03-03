@@ -107,7 +107,13 @@ to quickly create a Cobra application.`,
 			}
 
 			tree_entry := internals.Entry{}
-			if err := tree_entry.New(blob.GetOid(), file.Name()); err != nil {
+			fileInfo, err := os.Stat(file.Name())
+
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: Can't get file info - %v\n", err)
+			}
+
+			if err := tree_entry.New(blob.GetOid(), file.Name(), fileInfo.Mode().Perm()); err != nil {
 				fmt.Fprintf(os.Stderr, "Error: Can't create an entry - %v\n", err)
 				os.Exit(1)
 			}
