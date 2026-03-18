@@ -1,10 +1,3 @@
-// I will create a lockfile class that maintains the updating for the HEAD file
-/*
-	We wanna make sure that there will be no conflicts when two or more processes try to write on the HEAD file
-	as we are not sure that these two processes will write the same data or not
-	so we make each action to be done "Atomic"
-*/
-
 package internals
 
 import (
@@ -13,11 +6,7 @@ import (
 )
 
 type LockFile struct {
-	// HEAD file path
-	// lock file path
-	// actual lock file
-
-	file_path string // head
+	file_path string
 	lock_path string
 	lockfile  *os.File
 }
@@ -29,28 +18,6 @@ func (l *LockFile) New(file_path string) error {
 
 	return nil
 }
-
-/*
-	we will create a function called HoldForUpdate() (bool, error)
-	(true, nil) => request was successful
-	(false, nil) => request was denied
-	(false, error) => an error occured
-
-	it will lock our file to make sure that no one will be able to write on this file when we are working on it
-
-	1- if the file does not exist, the HEAD file in our case, it means that it was not created in the first
-		place and we can't perform commits, so we will return (false, error)
-	2- if it exists, we will check for the .lock file
-	  a- if the .lock file does not exist, it means no one is working on the HEAD file and we will create
-	  	it for our selves. that means our request to acquire a lock is successful. return (true, nil)
-	  b- if the .lock file exists, someone is working on it and our request was denied
-	  		return (fasle, nil)
-	  c- if the parentDir not exists or the premissions were invalied, return (fasle, error)
-
-	  ### notice that in 2.b we did not return an error as its just a denied request and we can try again later
-
-*/
-
 func (l *LockFile) HoldForUpdate() (bool, error) {
 	if l.lockfile == nil {
 		flags := os.O_CREATE | os.O_EXCL | os.O_RDWR

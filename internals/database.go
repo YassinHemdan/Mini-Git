@@ -27,17 +27,17 @@ func (db *Database) New(path string) error {
 }
 
 func (db *Database) Store(object Object) error {
-	// prepare the data that we want to encode and hash
+	// <type> <size>\0<content>
+	// <type> <size>\0<mode> <name>\0<oid><mode> <name>\0<oid>...
 	data := []byte(fmt.Sprintf("%s %d\x00", object.Type(), len(object.ToString())))
 	data = append(data, object.ToString()...)
 
-	// encode the data
 	var encoded_data bytes.Buffer
 	if err := binary.Write(&encoded_data, binary.BigEndian, data); err != nil {
 		return err
 	}
 
-	// hash the data using sha1sum
+
 	objectId := sha1.Sum(encoded_data.Bytes())
 	object.SetOid(objectId[:])
 
@@ -46,10 +46,9 @@ func (db *Database) Store(object Object) error {
 
 func (db *Database) writeObject(oid, data []byte) error {
 	oid_hex := fmt.Sprintf("%x", oid)
-	object_dir := strings.Join([]string{db.path, oid_hex[:2]}, string(os.PathSeparator))     //.git/objects/xx
-	object_path := strings.Join([]string{object_dir, oid_hex[2:]}, string(os.PathSeparator)) // .git/objects/xx/ooooooo
+	object_dir := strings.Join([]string{db.path, oid_hex[:2]}, string(os.PathSeparator))
+	object_path := strings.Join([]string{object_dir, oid_hex[2:]}, string(os.PathSeparator))
 
-	// if a file exists already, don't write it again
 	if _, err := os.Stat(object_path); err == nil {
 		return nil
 	}
@@ -57,8 +56,6 @@ func (db *Database) writeObject(oid, data []byte) error {
 	if err := os.MkdirAll(object_dir, JitDefaultPermission); err != nil {
 		return err
 	}
-
-	// compress the data
 
 	var compressed_data bytes.Buffer
 	zw := zlib.NewWriter(&compressed_data)
@@ -75,16 +72,13 @@ func (db *Database) writeObject(oid, data []byte) error {
 		return err
 	}
 
-	// we write our compressed data to the temp file
 	if _, err = temp_file.Write(compressed_data.Bytes()); err != nil {
 		return err
 	}
 
 	temp_file.Close()
 
-	// move the temp file to the obj file
-
-	fmt.Println(object_path) // just for debugging purposes
+	fmt.Println(object_path)
 
 	return os.Rename(temp_file.Name(), object_path)
 }

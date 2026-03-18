@@ -40,6 +40,7 @@ func (t *Tree) ToString() string {
 	})
 
 	var entries []byte
+	// <mode> <name>\0<oid><mode> <name>\0<oid>...
 	for _, entry := range data_copy {
 		entries = append(entries, fmt.Sprintf("10%04o %s%x", entry.GetMode(), entry.GetName(), 0x00)...)
 		entries = append(entries, entry.GetOid()...)

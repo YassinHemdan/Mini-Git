@@ -2,10 +2,8 @@ package cmd
 
 import (
 	"Jit/internals"
-	"bytes"
 	"encoding/hex"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 	"time"
@@ -65,38 +63,24 @@ to quickly create a Cobra application.`,
 			os.Exit(1)
 		}
 
-		// read the the content of the cur directory and store them
-		entries, err := os.ReadDir(root_dir)
-		if err != nil {
+		workspace := internals.Workspace{}
+
+		if err := workspace.New(root_dir); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: Can't read the current directory - %v\n", err)
 			os.Exit(1)
 		}
 
 		var tree_entries []internals.Entry
+		for _, entry := range workspace.GetDirEntries() {
+			data, err := workspace.ReadFile(entry.Name())
 
-		for _, entry := range entries {
-			// for now, we will only target the fiels "blobs"
-			if entry.Name() == "." || entry.Name() == ".." || entry.IsDir() {
-				continue
-			}
-
-			file, err := os.Open(entry.Name())
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: Can't open the cur file - %v\n", err)
 				os.Exit(1)
 			}
 
-			defer file.Close()
-
-			var file_content bytes.Buffer
-
-			if _, err := io.Copy(&file_content, file); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Can't copy/read the cur file - %v\n", err)
-				os.Exit(1)
-			}
-
 			blob := internals.Blob{}
-			if err := blob.New(file_content.Bytes()); err != nil {
+			if err := blob.New(data); err != nil {
 				fmt.Fprintf(os.Stderr, "Error: Can't create a blob for the file - %v\n", err)
 				os.Exit(1)
 			}
@@ -105,15 +89,15 @@ to quickly create a Cobra application.`,
 				fmt.Fprintf(os.Stderr, "Error: Can't store the current object/blob - %v\n", err)
 				os.Exit(1)
 			}
-
 			tree_entry := internals.Entry{}
-			fileInfo, err := os.Stat(file.Name())
+			fileInfo, err := workspace.GetFileState(entry.Name())
 
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: Can't get file info - %v\n", err)
+				os.Exit(1)
 			}
 
-			if err := tree_entry.New(blob.GetOid(), file.Name(), fileInfo.Mode().Perm()); err != nil {
+			if err := tree_entry.New(blob.GetOid(), entry.Name(), fileInfo.Mode().Perm()); err != nil {
 				fmt.Fprintf(os.Stderr, "Error: Can't create an entry - %v\n", err)
 				os.Exit(1)
 			}
