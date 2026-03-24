@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -70,39 +71,11 @@ to quickly create a Cobra application.`,
 			os.Exit(1)
 		}
 
-		var tree_entries []internals.Entry
-		for _, entry := range workspace.GetDirEntries() {
-			data, err := workspace.ReadFile(entry.Name())
+		tree_entries, err := saveSubTrees(workspace.GetDirEntries(), root_dir, &workspace, &db)
 
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Can't open the cur file - %v\n", err)
-				os.Exit(1)
-			}
-
-			blob := internals.Blob{}
-			if err := blob.New(data); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Can't create a blob for the file - %v\n", err)
-				os.Exit(1)
-			}
-
-			if err := db.Store(&blob); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Can't store the current object/blob - %v\n", err)
-				os.Exit(1)
-			}
-			tree_entry := internals.Entry{}
-			fileInfo, err := workspace.GetFileState(entry.Name())
-
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Can't get file info - %v\n", err)
-				os.Exit(1)
-			}
-
-			if err := tree_entry.New(blob.GetOid(), entry.Name(), fileInfo.Mode().Perm()); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Can't create an entry - %v\n", err)
-				os.Exit(1)
-			}
-
-			tree_entries = append(tree_entries, tree_entry)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Can't save sub trees - %v\n", err)
+			os.Exit(1)
 		}
 
 		tree := internals.Tree{}
@@ -152,10 +125,83 @@ to quickly create a Cobra application.`,
 			}
 			return ""
 		})()
+
+		fmt.Println("Num Of changes = ", db.GetChanges())
 		fmt.Printf("[master %s%s] %s\n", is_root, short_id, commit.GetMessage())
 	},
 }
 
+func saveSubTrees(dirEntries []os.DirEntry, path string, workspace *internals.Workspace, db *internals.Database) ([]internals.Entry, error) {
+	var treeEntries []internals.Entry
+	// fmt.Println("Hi")
+
+	for _, entry := range dirEntries {
+		if entry.Name() == "." || entry.Name() == ".." {
+			continue
+		}
+
+		fullpath := filepath.Join(path, entry.Name())
+		treeEntry := internals.Entry{}
+		// fmt.Println(entry.Name())
+		if entry.IsDir() {
+
+			subOSEntries, err := workspace.GetDirEntriesWithName(fullpath)
+
+			if err != nil {
+				return nil, fmt.Errorf("Could not read directory - %v", err)
+			}
+
+			subTreeEntries, err := saveSubTrees(subOSEntries, fullpath, workspace, db)
+			if err != nil {
+				return nil, fmt.Errorf("Could not save inner trees - %v", err)
+			}
+			tree := internals.Tree{}
+			if err := tree.New(subTreeEntries); err != nil {
+				return nil, fmt.Errorf("Could not create a tree - %v", err)
+			}
+
+			// fmt.Printf("Saving Tree %s\n", entry.Name())
+			if err := db.Store(&tree); err != nil {
+				return nil, fmt.Errorf("Could not save tree - %v", err)
+			}
+
+			fileMode := workspace.GetDirState()
+
+			if err := treeEntry.New(tree.GetOid(), entry.Name(), fileMode); err != nil {
+				return nil, fmt.Errorf("Could not create an entry - %v", err)
+			}
+		} else {
+			// it is a file, save it as a blob
+
+			fileContent, err := workspace.ReadFile(fullpath)
+
+			if err != nil {
+				return nil, fmt.Errorf("Could not read file - %v", err)
+			}
+
+			blob := internals.Blob{}
+
+			if err := blob.New(fileContent); err != nil {
+				return nil, fmt.Errorf("Could not create a new blob - %v", err)
+			}
+
+			// fmt.Printf("Saving blob %s\n", entry.Name())
+			if err := db.Store(&blob); err != nil {
+				return nil, fmt.Errorf("Could not save blob to db - %v", err)
+			}
+
+			fileInfo, err := workspace.GetFileState(fullpath)
+
+			if err := treeEntry.New(blob.GetOid(), entry.Name(), fileInfo.Mode().Perm()); err != nil {
+				return nil, fmt.Errorf("Could not create an entry - %v", err)
+			}
+
+		}
+		treeEntries = append(treeEntries, treeEntry)
+	}
+
+	return treeEntries, nil
+}
 func init() {
 	rootCmd.AddCommand(commitCmd)
 

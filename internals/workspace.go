@@ -27,9 +27,14 @@ func (w *Workspace) New(path string) error {
 	}
 
 	for _, entry := range entries { // only get the files
-		if entry.Name() == "." || entry.Name() == ".." || entry.IsDir() {
+		if entry.Name() == "." || entry.Name() == ".." || entry.Name() == ".git" || entry.Name() == ".jit" {
 			continue
 		}
+
+		// if entry.Name() == "temp" {
+		// 	w.entries = append(w.entries, entry)
+		// }
+
 		w.entries = append(w.entries, entry)
 	}
 
@@ -42,8 +47,15 @@ func (w *Workspace) GetPath() string {
 func (w *Workspace) GetDirEntries() []os.DirEntry {
 	return w.entries
 }
+func (w *Workspace) GetDirEntriesWithName(path string) ([]os.DirEntry, error) {
+	return os.ReadDir(path)
+}
 func (w *Workspace) GetFileState(fileName string) (os.FileInfo, error) {
 	return os.Stat(fileName)
+}
+
+func (w *Workspace) GetDirState() os.FileMode {
+	return os.FileMode(040000)
 }
 func (w *Workspace) ReadFile(fileName string) ([]byte, error) {
 	file, err := os.Open(fileName)

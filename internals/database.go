@@ -16,10 +16,12 @@ type IDatabase interface {
 }
 
 type Database struct {
-	path string
+	count int
+	path  string
 }
 
 func (db *Database) New(path string) error {
+	db.count = 0
 	db.path = path
 	fmt.Println("New database created at", db.path)
 
@@ -27,6 +29,7 @@ func (db *Database) New(path string) error {
 }
 
 func (db *Database) Store(object Object) error {
+	// fmt.Println("Saving: ", entryName)
 	// <type> <size>\0<content>
 	// <type> <size>\0<mode> <name>\0<oid><mode> <name>\0<oid>...
 	data := []byte(fmt.Sprintf("%s %d\x00", object.Type(), len(object.ToString())))
@@ -36,7 +39,6 @@ func (db *Database) Store(object Object) error {
 	if err := binary.Write(&encoded_data, binary.BigEndian, data); err != nil {
 		return err
 	}
-
 
 	objectId := sha1.Sum(encoded_data.Bytes())
 	object.SetOid(objectId[:])
@@ -52,6 +54,8 @@ func (db *Database) writeObject(oid, data []byte) error {
 	if _, err := os.Stat(object_path); err == nil {
 		return nil
 	}
+
+	db.count++
 
 	if err := os.MkdirAll(object_dir, JitDefaultPermission); err != nil {
 		return err
@@ -78,7 +82,7 @@ func (db *Database) writeObject(oid, data []byte) error {
 
 	temp_file.Close()
 
-	fmt.Println(object_path)
+	// fmt.Println(object_path)
 
 	return os.Rename(temp_file.Name(), object_path)
 }
@@ -86,4 +90,8 @@ func (db *Database) writeObject(oid, data []byte) error {
 func (db *Database) generateTmpObjectName(hex_oid string) string {
 
 	return fmt.Sprintf("tmp_obj_%x", hex_oid[0:3])
+}
+
+func (db *Database) GetChanges() int {
+	return db.count
 }
