@@ -62,8 +62,6 @@ to quickly create a Cobra application.`,
 			fmt.Fprintf(os.Stderr, "Error: Can't create a new database - %v\n", err)
 			os.Exit(1)
 		}
-		//////////////////////////////////
-		// save blobs and trees
 
 		workspace := internals.Workspace{}
 
@@ -78,12 +76,9 @@ to quickly create a Cobra application.`,
 			os.Exit(1)
 		}
 
-		fmt.Println("from workspace: ", filesPathNames)
 
 		entries := make([]internals.Entry, 0)
 		for _, filePath := range filesPathNames {
-			// fmt.Println(filePath)
-			// fullpath := filepath.Join(root_dir, filePath)
 			fileContent, err := workspace.ReadFile(filePath)
 
 			if err != nil {
@@ -111,17 +106,6 @@ to quickly create a Cobra application.`,
 			entries = append(entries, &blob)
 		}
 
-		// fmt.Println(entries)
-		// here lets build our trees. using the entries, the tree class will manage building the
-		// sub trees necessary for our commit
-
-		fmt.Println("Looping over entries: ")
-		for _, ent := range entries {
-			fmt.Println(ent.GetPathname())
-			fmt.Println(ent.GetName())
-			fmt.Println(ent.ParentDirectories())
-			fmt.Println("***********************************")
-		}
 		tree := internals.Tree{}
 		tree = tree.Build(entries)
 		tree.Traverse(func(e internals.Entry) {
@@ -130,7 +114,7 @@ to quickly create a Cobra application.`,
 				os.Exit(1)
 			}
 		})
-		//////////////////////////////////
+
 		refs := internals.Refs{}
 
 		if err := refs.New(jit_dir); err != nil {

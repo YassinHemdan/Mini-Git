@@ -29,15 +29,6 @@ func (db *Database) New(path string) error {
 }
 
 func (db *Database) Store(object Object) error {
-	// entry, ok := object.(Entry)
-	// if ok {
-	// 	fmt.Println("entry name is ", entry.GetName())
-	// } else {
-	// 	fmt.Println("not an entry")
-	// }
-	// fmt.Println("Saving: ", entryName)
-	// <type> <size>\0<content>
-	// <type> <size>\0<mode> <name>\0<oid><mode> <name>\0<oid>...
 	data := []byte(fmt.Sprintf("%s %d\x00", object.Type(), len(object.ToString())))
 	data = append(data, object.ToString()...)
 
@@ -87,8 +78,6 @@ func (db *Database) writeObject(oid, data []byte) error {
 	}
 
 	temp_file.Close()
-
-	// fmt.Println(object_path)
 
 	return os.Rename(temp_file.Name(), object_path)
 }
