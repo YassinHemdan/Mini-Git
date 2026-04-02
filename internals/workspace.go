@@ -37,7 +37,6 @@ func (w *Workspace) listFilesRec(pathname string, filesPaths *[]string) error {
 		if entry.Name() == "." || entry.Name() == ".." || entry.Name() == ".git" || entry.Name() == ".jit" || entry.Name() == "bin" {
 			continue
 		}
-		fmt.Println()
 		fullpath := filepath.Join(pathname, entry.Name())
 		if entry.IsDir() {
 			w.listFilesRec(fullpath, filesPaths)
