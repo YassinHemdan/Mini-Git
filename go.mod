@@ -1,4 +1,4 @@
-module Jit
+module JIT
 
 go 1.25.0
 

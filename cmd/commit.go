@@ -1,12 +1,14 @@
 package cmd
 
 import (
-	"Jit/internals"
 	"encoding/hex"
 	"fmt"
 	"os"
 	"strings"
 	"time"
+
+	internals "JIT/internals"
+	database "JIT/internals/database"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
@@ -40,7 +42,7 @@ to quickly create a Cobra application.`,
 		config.JIT_AUTHOR_NAME = os.Getenv("G_AUTHOR_NAME")
 		config.JIT_AUTHOR_EMAIL = os.Getenv("G_AUTHOR_EMAIL")
 
-		author := internals.Author{}
+		author := database.Author{}
 
 		if err := author.New(config.JIT_AUTHOR_NAME, config.JIT_AUTHOR_EMAIL, time.Now()); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to create a new author - %v\n", err)
@@ -76,8 +78,7 @@ to quickly create a Cobra application.`,
 			os.Exit(1)
 		}
 
-
-		entries := make([]internals.Entry, 0)
+		entries := make([]database.Entry, 0)
 		for _, filePath := range filesPathNames {
 			fileContent, err := workspace.ReadFile(filePath)
 
@@ -86,7 +87,7 @@ to quickly create a Cobra application.`,
 				os.Exit(1)
 			}
 
-			blob := internals.Blob{}
+			blob := database.Blob{}
 			isExecutable := func() bool {
 				fileInfo, err := workspace.GetFileState(filePath)
 				if err != nil {
@@ -106,9 +107,9 @@ to quickly create a Cobra application.`,
 			entries = append(entries, &blob)
 		}
 
-		tree := internals.Tree{}
+		tree := database.Tree{}
 		tree = tree.Build(entries)
-		tree.Traverse(func(e internals.Entry) {
+		tree.Traverse(func(e database.Entry) {
 			if err := db.Store(e); err != nil {
 				fmt.Fprintf(os.Stderr, "Error: Can't save entry in db - %v\n", err)
 				os.Exit(1)
@@ -129,7 +130,7 @@ to quickly create a Cobra application.`,
 			os.Exit(1)
 		}
 
-		commit := internals.Commit{}
+		commit := database.Commit{}
 		if err := commit.New(parent_id, tree.GetOid(), message, author, author); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to create a commit object - %v\n", err)
 			os.Exit(1)

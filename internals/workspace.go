@@ -34,7 +34,7 @@ func (w *Workspace) listFilesRec(pathname string, filesPaths *[]string) error {
 	}
 
 	for _, entry := range entries {
-		if entry.Name() == "." || entry.Name() == ".." || entry.Name() == ".git" || entry.Name() == ".jit" {
+		if entry.Name() == "." || entry.Name() == ".." || entry.Name() == ".git" || entry.Name() == ".jit" || entry.Name() == "bin" {
 			continue
 		}
 		fmt.Println()

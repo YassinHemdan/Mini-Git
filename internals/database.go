@@ -1,18 +1,21 @@
 package internals
 
+// lets import the Object
+
 import (
 	"bytes"
 	"compress/zlib"
 	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
+	database "JIT/internals/database"
 	"os"
 	"strings"
 )
 
 type IDatabase interface {
 	New(string) error
-	Store(Object) error
+	Store(database.Object) error // we need to import it
 }
 
 type Database struct {
@@ -28,7 +31,7 @@ func (db *Database) New(path string) error {
 	return nil
 }
 
-func (db *Database) Store(object Object) error {
+func (db *Database) Store(object database.Object) error {
 	data := []byte(fmt.Sprintf("%s %d\x00", object.Type(), len(object.ToString())))
 	data = append(data, object.ToString()...)
 

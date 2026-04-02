@@ -1,6 +1,6 @@
 package main
 
-import "Jit/cmd"
+import "JIT/cmd"
 
 func main() {
 	cmd.Execute()

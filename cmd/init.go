@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"Jit/internals"
+	"JIT/internals"
 	"fmt"
 	"os"
 	"strings"

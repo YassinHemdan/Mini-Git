@@ -1,6 +1,7 @@
 .DEFAULT_GOAL := all
 PROJECT_NAME := "jit"
 BINARY_NAME := "jit"
+BIN_DIR := bin
 
 .PHONY: all clean test test-verbose run build help
 
@@ -8,15 +9,16 @@ all: clean build test
 
 clean:
 	@echo "Cleaning ..."
-	@rm -f $(BINARY_NAME) || true
-	@rm -r .jit/ || true
+	@rm -rf $(BIN_DIR) || true
+	@rm -rf .jit/ || true
 
 test: build
 	go test ./...
 
 build:
-	go build -o $(BINARY_NAME) main.go
-	chmod +x $(BINARY_NAME)
+	@mkdir -p $(BIN_DIR)
+	go build -o $(BIN_DIR)/$(BINARY_NAME) main.go
+	chmod +x $(BIN_DIR)/$(BINARY_NAME)
 
 check:
-	@./jit commit -m "first commit"
+	@./$(BIN_DIR)/jit commit -m "first commit"
