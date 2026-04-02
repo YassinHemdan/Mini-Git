@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 )
 
 /*
@@ -14,38 +15,53 @@ We need a class that maanage:
 	2- read these files and dirs
 */
 type Workspace struct {
-	path    string
-	entries []os.DirEntry
+	root string
 }
 
-func (w *Workspace) New(path string) error {
-	w.path = path
-	entries, err := os.ReadDir(path)
-
-	if err != nil {
-		return fmt.Errorf("Cant't read the current directry - %v", err)
-	}
-
-	for _, entry := range entries { // only get the files
-		if entry.Name() == "." || entry.Name() == ".." || entry.Name() == ".git" || entry.Name() == ".jit" {
-			continue
-		}
-
-		// if entry.Name() == "temp" {
-		// 	w.entries = append(w.entries, entry)
-		// }
-
-		w.entries = append(w.entries, entry)
-	}
-
+func (w *Workspace) New(root string) error {
+	w.root = root
 	return nil
 }
 
 func (w *Workspace) GetPath() string {
-	return w.path
+	return w.root
 }
-func (w *Workspace) GetDirEntries() []os.DirEntry {
-	return w.entries
+
+func (w *Workspace) listFilesRec(pathname string, filesPaths *[]string) error {
+	entries, err := os.ReadDir(pathname)
+	if err != nil {
+		return fmt.Errorf("Can't read current path - %v", err)
+	}
+
+	for _, entry := range entries {
+		if entry.Name() == "." || entry.Name() == ".." || entry.Name() == ".git" || entry.Name() == ".jit" {
+			continue
+		}
+		fmt.Println()
+		fullpath := filepath.Join(pathname, entry.Name())
+		if entry.IsDir() {
+			w.listFilesRec(fullpath, filesPaths)
+		} else {
+			relPath, err := filepath.Rel(w.root, fullpath)
+			if err != nil {
+				return fmt.Errorf("Can't get relative path - %v", err)
+			}
+
+			*filesPaths = append(*filesPaths, relPath)
+		}
+
+	}
+
+	return nil
+}
+func (w *Workspace) ListFiles() ([]string, error) {
+	filesPaths := make([]string, 0)
+
+	if err := w.listFilesRec(w.root, &filesPaths); err != nil {
+		return nil, fmt.Errorf("Can't list dir files - %v", err)
+	}
+
+	return filesPaths, nil
 }
 func (w *Workspace) GetDirEntriesWithName(path string) ([]os.DirEntry, error) {
 	return os.ReadDir(path)

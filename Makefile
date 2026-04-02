@@ -9,6 +9,7 @@ all: clean build test
 clean:
 	@echo "Cleaning ..."
 	@rm -f $(BINARY_NAME) || true
+	@rm -r .jit/ || true
 
 test: build
 	go test ./...
@@ -16,3 +17,6 @@ test: build
 build:
 	go build -o $(BINARY_NAME) main.go
 	chmod +x $(BINARY_NAME)
+
+check:
+	@./jit commit -m "first commit"
