@@ -21,4 +21,4 @@ build:
 	chmod +x $(BIN_DIR)/$(BINARY_NAME)
 
 check:
-	@./$(BIN_DIR)/jit commit -m "first commit"
+	@./$(BIN_DIR)/jit add file.txt

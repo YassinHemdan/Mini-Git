@@ -20,20 +20,24 @@ func (l *LockFile) New(file_path string) error {
 }
 func (l *LockFile) HoldForUpdate() (bool, error) {
 	if l.lockfile == nil {
+		fmt.Println("I am here - 1")
 		flags := os.O_CREATE | os.O_EXCL | os.O_RDWR
 		lock_file, err := os.OpenFile(l.lock_path, flags, JitDefaultPermission)
 
 		if err != nil {
 			if os.IsExist(err) {
+				fmt.Println("I am here - 2")
 				return false, nil
 			}
 			if os.IsNotExist(err) {
+				fmt.Println("I am here - 3")
 				return false, &MissingParent{message: "Parent Dir Not Found"}
 			}
 			if os.IsPermission(err) {
+				fmt.Println("I am here - 4")
 				return false, &NoPermission{message: "Invalid Permissions"}
 			}
-
+			fmt.Println("I am here - 5")
 			return false, err
 		}
 
