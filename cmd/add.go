@@ -8,6 +8,7 @@ import (
 	database "JIT/internals/database"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -51,58 +52,70 @@ to quickly create a Cobra application.`,
 			os.Exit(1)
 		}
 		workspace := internals.Workspace{}
+		workspace.New(root_dir)
 		for _, path := range args {
-			fmt.Printf("Adding file: %s\n", path)
 
-			file_content, err := workspace.ReadFile(path)
+			fullpath := filepath.Join(root_dir, path)
+			files, err := workspace.ListFiles(fullpath)
+
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Could not read file - %v\n", err)
+				fmt.Fprintf(os.Stderr, "Error: Could not list files - %v\n", err)
 				os.Exit(1)
 			}
 
-			blob := database.Blob{}
+			for _, fileName := range files {
+				fmt.Printf("Adding file: %s\n", fileName)
+				file_content, err := workspace.ReadFile(fileName)
+				// fmt.Println(string(file_content))
+				// fmt.Println("***************************************************")
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error: Could not read file - %v\n", err)
+					os.Exit(1)
+				}
 
-			isExecutable := func() bool {
-				fileInfo, err := workspace.GetFileState(path)
+				blob := database.Blob{}
+				isExecutable := func() bool {
+					fileInfo, err := workspace.GetFileState(fileName)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error: Can't get file state - %v\n", err)
+						os.Exit(1)
+					}
+					if fileInfo.Mode()&0111 != 0 {
+						return true
+					}
+					return false
+				}
+				if err := blob.New(file_content, fileName, isExecutable()); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: Could not create a new blob - %v\n", err)
+					os.Exit(1)
+				}
+
+				if err := db.Store(&blob); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: Could not store the blob - %v\n", err)
+					os.Exit(1)
+				}
+
+				fileInfo, err := workspace.GetFileState(fileName)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Error: Can't get file state - %v\n", err)
 					os.Exit(1)
 				}
-				if fileInfo.Mode()&0111 != 0 {
-					return true
+				stat, ok := fileInfo.Sys().(*syscall.Stat_t)
+				if !ok {
+					fmt.Fprintf(os.Stderr, "Error: Could not get file's stat - %v\n", err)
+					os.Exit(1)
 				}
-				return false
-			}
-			if err := blob.New(file_content, path, isExecutable()); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Could not create a new blob - %v\n", err)
-				os.Exit(1)
+
+				if err := index.Add(fileName, blob.GetOid(), stat); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: Could not add file - %v\n", err)
+					os.Exit(1)
+				}
 			}
 
-			if err := db.Store(&blob); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Could not store the blob - %v\n", err)
-				os.Exit(1)
-			}
-
-			fileInfo, err := workspace.GetFileState(path)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Can't get file state - %v\n", err)
-				os.Exit(1)
-			}
-			stat, ok := fileInfo.Sys().(*syscall.Stat_t)
-			if !ok {
-				fmt.Fprintf(os.Stderr, "Error: Could not get file's stat - %v\n", err)
-				os.Exit(1)
-			}
-
-			if err := index.Add(path, blob.GetOid(), stat); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Could not add file - %v\n", err)
-				os.Exit(1)
-			}
-
-			if err := index.WriteUpdates(); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Could not add file - %v\n", err)
-				os.Exit(1)
-			}
+		}
+		if err := index.WriteUpdates(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Could not add file - %v\n", err)
+			os.Exit(1)
 		}
 	},
 }

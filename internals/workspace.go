@@ -15,11 +15,19 @@ We need a class that maanage:
 	2- read these files and dirs
 */
 type Workspace struct {
-	root string
+	root   string
+	ignore map[string]bool
 }
 
 func (w *Workspace) New(root string) error {
 	w.root = root
+	w.ignore = map[string]bool{
+		".":    true,
+		"..":   true,
+		".git": true,
+		".jit": true,
+		"bin":  true,
+	}
 	return nil
 }
 
@@ -27,41 +35,84 @@ func (w *Workspace) GetPath() string {
 	return w.root
 }
 
-func (w *Workspace) listFilesRec(pathname string, filesPaths *[]string) error {
-	entries, err := os.ReadDir(pathname)
-	if err != nil {
-		return fmt.Errorf("Can't read current path - %v", err)
+func (w *Workspace) ListFiles(pathname string) ([]string, error) {
+	// if the pathname is empty, we will use the root path
+	if len(pathname) == 0 {
+		pathname = w.root
 	}
 
-	for _, entry := range entries {
-		if entry.Name() == "." || entry.Name() == ".." || entry.Name() == ".git" || entry.Name() == ".jit" || entry.Name() == "bin" {
-			continue
+	info, err := os.Stat(pathname)
+	if err != nil {
+		return nil, fmt.Errorf("Can't get current path's stat - %v", err)
+	}
+
+	if info.IsDir() {
+		entries, err := os.ReadDir(pathname)
+		if err != nil {
+			return nil, fmt.Errorf("Can't get dir's entries - %v", err)
 		}
-		fullpath := filepath.Join(pathname, entry.Name())
-		if entry.IsDir() {
-			w.listFilesRec(fullpath, filesPaths)
-		} else {
-			relPath, err := filepath.Rel(w.root, fullpath)
-			if err != nil {
-				return fmt.Errorf("Can't get relative path - %v", err)
+
+		var files []string
+		for _, entry := range entries {
+			entryName := entry.Name()
+			if w.ignore[entryName] {
+				continue
 			}
 
-			*filesPaths = append(*filesPaths, relPath)
+			childName := filepath.Join(pathname, entryName)
+			childFiles, err := w.ListFiles(childName)
+
+			if err != nil {
+				return nil, fmt.Errorf("Can't get dir's entries - %v", err)
+			}
+
+			files = append(files, childFiles...)
 		}
 
+		return files, nil
 	}
-
-	return nil
-}
-func (w *Workspace) ListFiles() ([]string, error) {
-	filesPaths := make([]string, 0)
-
-	if err := w.listFilesRec(w.root, &filesPaths); err != nil {
-		return nil, fmt.Errorf("Can't list dir files - %v", err)
+	relPath, err := filepath.Rel(w.root, pathname)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get relative path: %w", err)
 	}
-
-	return filesPaths, nil
+	return []string{relPath}, nil
 }
+
+// func (w *Workspace) listFilesRec(pathname string, filesPaths *[]string) error {
+// 	entries, err := os.ReadDir(pathname)
+// 	if err != nil {
+// 		return fmt.Errorf("Can't read current path - %v", err)
+// 	}
+
+// 	for _, entry := range entries {
+// 		if entry.Name() == "." || entry.Name() == ".." || entry.Name() == ".git" || entry.Name() == ".jit" || entry.Name() == "bin" {
+// 			continue
+// 		}
+// 		fullpath := filepath.Join(pathname, entry.Name())
+// 		if entry.IsDir() {
+// 			w.listFilesRec(fullpath, filesPaths)
+// 		} else {
+// 			relPath, err := filepath.Rel(w.root, fullpath)
+// 			if err != nil {
+// 				return fmt.Errorf("Can't get relative path - %v", err)
+// 			}
+
+// 			*filesPaths = append(*filesPaths, relPath)
+// 		}
+
+// 	}
+
+// 	return nil
+// }
+// func (w *Workspace) ListFiles() ([]string, error) {
+// 	filesPaths := make([]string, 0)
+
+// 	if err := w.listFilesRec(w.root, &filesPaths); err != nil {
+// 		return nil, fmt.Errorf("Can't list dir files - %v", err)
+// 	}
+
+//		return filesPaths, nil
+//	}
 func (w *Workspace) GetDirEntriesWithName(path string) ([]os.DirEntry, error) {
 	return os.ReadDir(path)
 }

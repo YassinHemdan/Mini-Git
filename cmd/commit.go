@@ -72,7 +72,7 @@ to quickly create a Cobra application.`,
 			os.Exit(1)
 		}
 
-		filesPathNames, err := workspace.ListFiles()
+		filesPathNames, err := workspace.ListFiles("")
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: Can't list files of the current directory - %v\n", err)
 			os.Exit(1)

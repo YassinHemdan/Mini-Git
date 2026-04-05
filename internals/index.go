@@ -6,50 +6,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"hash"
+	"slices"
 	"syscall"
 )
-
-/*
-	Lets see how the index file is formatted
-	FIRST: 12-byte of header consisting of:
-		1- 4-byte signature: 'D' 'I' 'R' 'C' stands for dircache
-		2- 4-byte version number -> it will be version 1 ==> 1
-		3- 32-bit number of index entries == 4-byte
-
-		it will similar to this:
-
-
-		00000000 44 49 52 43 00 00 00 02 00 00 00 01       |DIRC........ |
-
-
-
-		44 49 52 43 => D I R C
-		00 00 00 02 => 2
-		00 00 00 01 => 1       we will only add one entry for now to our index
-
-
-	SECOND: The header is followed by the entries themselves,
-		FOR NOW: we will append only one entry, lets see how the entry will be formatted
-		ENTRY: each entry begins with some values that we can get by calling stat() on the file,
-		   	comprising 10 4-byte numbers in all
-
-		   		1-  32-bit ctime seconds   =>the last time a file's "metadata" changed  (change time)
-		   		2-  32-bit ctime nanoseconds fractions
-		   		3-  32-bit mtime seconds   => the last time a file's "data" changed  (modify time)
-		   		4-  32-bit mtime nanoseconds fractions
-		   		5-  32-bit dev  => the ID of the hardware device the file resides on
-		   		6-  32-bit ino  => the inode storing attributes
-		   		7-  32-bit mode => file modes like before
-		   		8-  32-bit uid  => ID of the file's user
-		   		9-  32-bit gid  => ID of the group
-		   		10- 32 bit file size
-
-	THIRD:  160-bit (20-byte) SHA-1 of the object. This is the blob's id created in the .git/objects
-	FOURTH: 16-bit (2-byte) set of flags
-	FIFTH:  12-bit file's name length if the length is less than 0xFFF;
-			otherwise 0xFFF is stored in this field
-	SIXTH: another 20-byte SHA-1 hash, it is the hash if the index itself
-*/
 
 type entry struct {
 	ctime     uint32
@@ -109,7 +68,6 @@ func (e *entry) toBytes() []byte {
 	binary.Write(buffer, binary.BigEndian, e.size)
 	binary.Write(buffer, binary.BigEndian, e.oid)
 	binary.Write(buffer, binary.BigEndian, e.flags)
-	// binary.Write(buffer, binary.BigEndian, e.path)
 	buffer.WriteString(e.path)
 	buffer.WriteByte(0)
 
@@ -120,9 +78,13 @@ func (e *entry) toBytes() []byte {
 	return buffer.Bytes()
 }
 
+func (e *entry) key() string {
+	return e.path
+}
+
 type Index struct {
-	// what do we need here ?
-	entries  map[string]*entry // shall we make it a normal slice instead of a map ?
+	keys     []string
+	entries  map[string]*entry
 	lockfile *LockFile
 }
 
@@ -143,24 +105,12 @@ func (idx *Index) Add(pathname string, oid []byte, stat *syscall.Stat_t) error {
 	if err != nil {
 		return fmt.Errorf("Can't create index entry - %v", err)
 	}
-
-	idx.entries[pathname] = entry
+	idx.keys = append(idx.keys, entry.key())
+	idx.entries[entry.key()] = entry
 	return nil
 }
 
 func (idx *Index) WriteUpdates() error {
-
-	/*
-		we will use our lockfile to make sure that we are the only ones modifying it
-		1-  Make sure that we aquired the lock over our file
-		2- Prepare the header format, save it and digest it
-		3- loop over entries, get the toString for every one and save it, digest it
-	*/
-
-	/*
-		In the future, we need to make sure that this is the right way to handle the failure of
-		HoldForUpdate
-	*/
 	if isLocked, err := idx.lockfile.HoldForUpdate(); !isLocked || err != nil {
 		return fmt.Errorf("Could not acquire lock over index file - %v", err)
 	}
@@ -176,7 +126,18 @@ func (idx *Index) WriteUpdates() error {
 		return fmt.Errorf("Could not write in index file - %v", err)
 	}
 
-	for _, entry := range idx.entries {
+	slices.SortFunc(idx.keys, func(str1, str2 string) int {
+		if str1 < str2 {
+			return -1
+		} else if str1 > str2 {
+			return 1
+		} else {
+			return 0
+		}
+	})
+
+	for _, key := range idx.keys {
+		entry := idx.entries[key]
 		if err := idx.write(entry.toBytes(), digest); err != nil {
 			return fmt.Errorf("Could not write in index file - %v", err)
 		}
