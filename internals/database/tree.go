@@ -3,7 +3,6 @@ package internals
 import (
 	"fmt"
 	"path/filepath"
-	"slices"
 	"strings"
 )
 
@@ -27,7 +26,7 @@ func (t *Tree) AddEntry(ParentDirectories []string, entry Entry) {
 		childTree.New()
 		val, ok := t.entries[filepath.Base(ParentDirectories[0])]
 		if ok {
-			childTree = val.(*Tree)
+			childTree = val.(*Tree) // already saved before, use it
 		}
 
 		childTree.SetTreePathname(ParentDirectories[0])
@@ -40,44 +39,26 @@ func (t *Tree) AddEntry(ParentDirectories []string, entry Entry) {
 	}
 }
 
-func (t *Tree) SetTreePathname(pathname string) {
-	t.pathname = pathname
-}
-func (t *Tree) GetPathname() string {
-	return t.pathname
-}
-
-func (t *Tree) Build(entries []Entry) Tree {
-	slices.SortFunc(entries, func(e1, e2 Entry) int {
-		if e1.GetPathname() < e2.GetPathname() {
-			return -1
-		} else if e1.GetPathname() > e2.GetPathname() {
-			return 1
-		}
-		return 0
-	})
-
+func BuildTree(entries []Entry) *Tree {
 	root := Tree{}
 	root.New()
 	for _, entry := range entries {
 		root.AddEntry(entry.ParentDirectories(), entry)
 	}
-
-	return root
+	return &root
 }
 
-func (t *Tree) Traverse(fn func(Entry)) {
+func (t *Tree) Traverse(fn func(*Tree)) {
 	for _, k := range t.keys {
 		entry := t.entries[k]
 		if entry.Type() == "tree" {
 			childTree := entry.(*Tree)
 			childTree.Traverse(fn)
-		} else {
-			fn(entry)
 		}
 	}
 	fn(t)
 }
+
 func (t *Tree) Type() string {
 	return "tree"
 }
@@ -91,7 +72,6 @@ func (t *Tree) SetOid(oid []byte) {
 
 func (t *Tree) ToString() string {
 	var data []byte
-
 	for _, k := range t.keys {
 		curEntry := t.entries[k]
 		data = append(data, fmt.Sprintf("%s %s", curEntry.GetMode(), curEntry.GetName())...)
@@ -118,4 +98,11 @@ func (t *Tree) ParentDirectories() []string {
 	}
 
 	return parents
+}
+
+func (t *Tree) SetTreePathname(pathname string) {
+	t.pathname = pathname
+}
+func (t *Tree) GetPathname() string {
+	return t.pathname
 }

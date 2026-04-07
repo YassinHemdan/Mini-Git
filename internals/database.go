@@ -3,12 +3,13 @@ package internals
 // lets import the Object
 
 import (
+	database "JIT/internals/database"
+	"JIT/internals/utils"
 	"bytes"
 	"compress/zlib"
 	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
-	database "JIT/internals/database"
 	"os"
 	"strings"
 )
@@ -32,6 +33,7 @@ func (db *Database) New(path string) error {
 }
 
 func (db *Database) Store(object database.Object) error {
+	// objToStr := object
 	data := []byte(fmt.Sprintf("%s %d\x00", object.Type(), len(object.ToString())))
 	data = append(data, object.ToString()...)
 
@@ -57,7 +59,7 @@ func (db *Database) writeObject(oid, data []byte) error {
 
 	db.count++
 
-	if err := os.MkdirAll(object_dir, JitDefaultPermission); err != nil {
+	if err := os.MkdirAll(object_dir, utils.JitDefaultPermission); err != nil {
 		return err
 	}
 

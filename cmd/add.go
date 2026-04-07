@@ -6,6 +6,8 @@ package cmd
 import (
 	internals "JIT/internals"
 	database "JIT/internals/database"
+	index "JIT/internals/index"
+	constants "JIT/internals/utils"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -35,7 +37,7 @@ to quickly create a Cobra application.`,
 			os.Exit(1)
 		}
 
-		jit_dir := strings.Join([]string{root_dir, internals.JitMetadataDir}, string(os.PathSeparator))
+		jit_dir := strings.Join([]string{root_dir, constants.JitMetadataDir}, string(os.PathSeparator))
 		db_dir := strings.Join([]string{jit_dir, "objects"}, string(os.PathSeparator))
 
 		db := internals.Database{}
@@ -44,15 +46,21 @@ to quickly create a Cobra application.`,
 			os.Exit(1)
 		}
 
-		// lets join the jit path with "index"
-		// .jit/index
-		index, err := internals.NewIndex(jit_dir + string(os.PathSeparator) + "index")
+		index, err := index.NewIndex(filepath.Join(jit_dir, "index"))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: Can't create an index file - %v\n", err)
 			os.Exit(1)
 		}
 		workspace := internals.Workspace{}
 		workspace.New(root_dir)
+
+		verified, err := index.LoadForUpdate()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Could not load file - %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println(verified)
+
 		for _, path := range args {
 
 			fullpath := filepath.Join(root_dir, path)
@@ -66,8 +74,6 @@ to quickly create a Cobra application.`,
 			for _, fileName := range files {
 				fmt.Printf("Adding file: %s\n", fileName)
 				file_content, err := workspace.ReadFile(fileName)
-				// fmt.Println(string(file_content))
-				// fmt.Println("***************************************************")
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Error: Could not read file - %v\n", err)
 					os.Exit(1)
@@ -113,6 +119,7 @@ to quickly create a Cobra application.`,
 			}
 
 		}
+
 		if err := index.WriteUpdates(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: Could not add file - %v\n", err)
 			os.Exit(1)

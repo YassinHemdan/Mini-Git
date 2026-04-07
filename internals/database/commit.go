@@ -42,14 +42,5 @@ func (c *Commit) ToString() string {
 		}
 		return fmt.Sprintf("parent %x\n", c.parent_oid)
 	})()
-
-	// Sample Output
-	// tree 1298djdhahgs89172hdga
-	// parent 1298djdhahgs89172hdga
-	// author yassin mohamed <ym910402@gmail.com> 2026-06blablabla
-	// committer author yassin mohamed <ym910402@gmail.com> 2026-06blablabla
-	//
-	// Initial commit
-
 	return fmt.Sprintf("tree %x\n%sauthor %s\ncommitter %s\n\n%s\n", c.tree_oid, parent, c.author.ToString(), c.committer.ToString(), c.message)
 }

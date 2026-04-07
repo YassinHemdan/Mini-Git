@@ -1,6 +1,7 @@
 package internals
 
 import (
+	"JIT/internals/locks"
 	"bytes"
 	"encoding/hex"
 	"fmt"
@@ -28,7 +29,7 @@ func (r *Refs) New(path_name string) error {
 }
 
 func (r *Refs) UpdateHead(data []byte) error {
-	lockfile := LockFile{}
+	lockfile := locks.LockFile{}
 
 	if err := lockfile.New(r.getHeadPath()); err != nil {
 		return fmt.Errorf("Error: Couldn't make a new lockfile - %v", err)

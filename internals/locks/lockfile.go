@@ -1,6 +1,7 @@
-package internals
+package locks
 
 import (
+	"JIT/internals/utils"
 	"fmt"
 	"os"
 )
@@ -18,26 +19,25 @@ func (l *LockFile) New(file_path string) error {
 
 	return nil
 }
+
+func (l *LockFile) GetLockfile() *os.File {
+	return l.lockfile
+}
 func (l *LockFile) HoldForUpdate() (bool, error) {
 	if l.lockfile == nil {
-		fmt.Println("I am here - 1")
 		flags := os.O_CREATE | os.O_EXCL | os.O_RDWR
-		lock_file, err := os.OpenFile(l.lock_path, flags, JitDefaultPermission)
+		lock_file, err := os.OpenFile(l.lock_path, flags, utils.JitDefaultPermission)
 
 		if err != nil {
 			if os.IsExist(err) {
-				fmt.Println("I am here - 2")
 				return false, nil
 			}
 			if os.IsNotExist(err) {
-				fmt.Println("I am here - 3")
 				return false, &MissingParent{message: "Parent Dir Not Found"}
 			}
 			if os.IsPermission(err) {
-				fmt.Println("I am here - 4")
 				return false, &NoPermission{message: "Invalid Permissions"}
 			}
-			fmt.Println("I am here - 5")
 			return false, err
 		}
 
@@ -71,6 +71,19 @@ func (l *LockFile) Save() error {
 	return nil
 }
 
+func (l *LockFile) Rollback() error {
+	if !l.isLocked() {
+		return &StaleLock{message: "A lock is required"}
+	}
+
+	l.lockfile.Close()
+
+	if err := os.Remove(l.lock_path); err != nil {
+		return fmt.Errorf("Could not remove lock file - %v", err)
+	}
+
+	return nil
+}
 func (l *LockFile) isLocked() bool {
 	return l.lockfile != nil
 }

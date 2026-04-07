@@ -1,6 +1,9 @@
 package internals
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type Author struct {
 	name  string
@@ -17,5 +20,17 @@ func (a *Author) New(name, email string, time time.Time) error {
 }
 
 func (a *Author) ToString() string {
-	return a.name + " <" + a.email + "> " + a.time.Format(time.RFC3339)
+	timestamp := a.time.Unix()
+	
+	_, offsetSeconds := a.time.Zone()
+	sign := "+"
+	if offsetSeconds < 0 {
+		sign = "-"
+		offsetSeconds = -offsetSeconds
+	}
+	hours := offsetSeconds / 3600
+	minutes := (offsetSeconds % 3600) / 60
+	timezone := fmt.Sprintf("%s%02d%02d", sign, hours, minutes)
+
+	return fmt.Sprintf("%s <%s> %d %s", a.name, a.email, timestamp, timezone)
 }

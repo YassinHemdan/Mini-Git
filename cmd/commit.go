@@ -4,11 +4,14 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	internals "JIT/internals"
 	database "JIT/internals/database"
+	index "JIT/internals/index"
+	constants "JIT/internals/utils"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
@@ -56,7 +59,7 @@ to quickly create a Cobra application.`,
 			os.Exit(1)
 		}
 
-		jit_dir := strings.Join([]string{root_dir, internals.JitMetadataDir}, string(os.PathSeparator))
+		jit_dir := strings.Join([]string{root_dir, constants.JitMetadataDir}, string(os.PathSeparator))
 		db_dir := strings.Join([]string{jit_dir, "objects"}, string(os.PathSeparator))
 
 		db := internals.Database{}
@@ -65,57 +68,31 @@ to quickly create a Cobra application.`,
 			os.Exit(1)
 		}
 
-		workspace := internals.Workspace{}
+		index, err := index.NewIndex(filepath.Join(jit_dir, "index"))
 
-		if err := workspace.New(root_dir); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: Can't read the current directory - %v\n", err)
-			os.Exit(1)
-		}
-
-		filesPathNames, err := workspace.ListFiles("")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: Can't list files of the current directory - %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error: Can't create a new index - %v\n", err)
 			os.Exit(1)
 		}
 
-		entries := make([]database.Entry, 0)
-		for _, filePath := range filesPathNames {
-			fileContent, err := workspace.ReadFile(filePath)
-
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Can't read file - %v\n", err)
-				os.Exit(1)
-			}
-
-			blob := database.Blob{}
-			isExecutable := func() bool {
-				fileInfo, err := workspace.GetFileState(filePath)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error: Can't get file state - %v\n", err)
-					os.Exit(1)
-				}
-				if fileInfo.Mode()&0111 != 0 {
-					return true
-				}
-				return false
-			}
-			if err := blob.New(fileContent, filePath, isExecutable()); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Can't create new blob - %v\n", err)
-				os.Exit(1)
-			}
-
-			entries = append(entries, &blob)
+		// load the data from the index file
+		if _, err := index.Load(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Can't load index data - %v\n", err)
+			os.Exit(1)
 		}
 
-		tree := database.Tree{}
-		tree = tree.Build(entries)
-		tree.Traverse(func(e database.Entry) {
-			if err := db.Store(e); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Can't save entry in db - %v\n", err)
+		// now we will use the entries from the index to build our tree
+		entries := toTreeEntry(index.GetEntries())
+		merkleTree := database.BuildTree(entries)
+
+		merkleTree.Traverse(func(t *database.Tree) {
+			if err := db.Store(t); err != nil {
+				fmt.Fprintf(os.Stderr, "Error: Can't save tree in db - %v\n", err)
 				os.Exit(1)
 			}
 		})
 
+		
 		refs := internals.Refs{}
 
 		if err := refs.New(jit_dir); err != nil {
@@ -131,7 +108,8 @@ to quickly create a Cobra application.`,
 		}
 
 		commit := database.Commit{}
-		if err := commit.New(parent_id, tree.GetOid(), message, author, author); err != nil {
+
+		if err := commit.New(parent_id, merkleTree.GetOid(), message, author, author); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to create a commit object - %v\n", err)
 			os.Exit(1)
 		}
@@ -154,9 +132,20 @@ to quickly create a Cobra application.`,
 			return ""
 		})()
 
-		fmt.Println("Num Of changes = ", db.GetChanges())
+		// fmt.Println("Num Of changes = ", db.GetChanges())
+
 		fmt.Printf("[master %s%s] %s\n", is_root, short_id, commit.GetMessage())
 	},
+}
+
+func toTreeEntry(entries []*index.Entry) []database.Entry {
+	treeEntries := make([]database.Entry, 0)
+
+	for _, entry := range entries {
+		treeEntries = append(treeEntries, entry)
+	}
+
+	return treeEntries
 }
 
 func init() {
