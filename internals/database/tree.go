@@ -1,9 +1,9 @@
 package internals
 
 import (
+	"JIT/internals/utils"
 	"fmt"
 	"path/filepath"
-	"strings"
 )
 
 type Tree struct {
@@ -90,14 +90,15 @@ func (t *Tree) GetMode() string {
 }
 
 func (t *Tree) ParentDirectories() []string {
-	prefixs := strings.Split(filepath.ToSlash(t.GetPathname()), "/")
-	parents := []string{}
+	return utils.ParentDirectories(t.GetPathname())
+	// prefixs := strings.Split(filepath.ToSlash(t.GetPathname()), "/")
+	// parents := []string{}
 
-	for i := 1; i < len(prefixs); i++ {
-		parents = append(parents, strings.Join(prefixs[:i], "/"))
-	}
+	// for i := 1; i < len(prefixs); i++ {
+	// 	parents = append(parents, strings.Join(prefixs[:i], "/"))
+	// }
 
-	return parents
+	// return parents
 }
 
 func (t *Tree) SetTreePathname(pathname string) {

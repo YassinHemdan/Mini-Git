@@ -1,8 +1,8 @@
 package internals
 
 import (
+	"JIT/internals/utils"
 	"path/filepath"
-	"strings"
 )
 
 type Blob struct {
@@ -50,13 +50,5 @@ func (b *Blob) GetMode() string {
 }
 
 func (e *Blob) ParentDirectories() []string {
-	prefixs := strings.Split(filepath.ToSlash(e.GetPathname()), "/")
-	parents := []string{}
-
-	for i := 1; i < len(prefixs); i++ {
-		parents = append(parents, strings.Join(prefixs[:i], "/"))
-	}
-
-	return parents
+	return utils.ParentDirectories(e.GetPathname())
 }
-

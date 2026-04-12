@@ -19,8 +19,9 @@ const (
 )
 
 type Index struct {
-	keys      []string
+	keys      map[string]bool
 	entries   map[string]*Entry
+	parents   map[string]map[string]bool
 	lockfile  *locks.LockFile
 	pathname  string
 	isChanged bool
@@ -35,6 +36,8 @@ func NewIndex(pathname string) (*Index, error) {
 
 	return &Index{
 		entries:   make(map[string]*Entry),
+		keys:      make(map[string]bool),
+		parents:   make(map[string]map[string]bool),
 		lockfile:  &lf,
 		pathname:  pathname,
 		isChanged: false,
@@ -42,7 +45,9 @@ func NewIndex(pathname string) (*Index, error) {
 }
 
 func (idx *Index) Add(pathname string, oid []byte, stat *syscall.Stat_t) error {
-
+	if len(pathname) == 0 {
+		return fmt.Errorf("Can't add an entry with no name")
+	}
 	entry, err := newEntry(pathname, oid, stat)
 	if err != nil {
 		return fmt.Errorf("Can't create index entry - %v", err)
@@ -58,7 +63,8 @@ func (idx *Index) Add(pathname string, oid []byte, stat *syscall.Stat_t) error {
 
 func (idx *Index) GetEntries() []*Entry {
 	entries := make([]*Entry, 0)
-	for _, key := range idx.keys {
+	sortedKeys := idx.getKeysSlice()
+	for _, key := range sortedKeys {
 		entry := idx.entries[key]
 		entries = append(entries, entry)
 	}
@@ -83,17 +89,18 @@ func (idx *Index) WriteUpdates() error {
 		return fmt.Errorf("Could not write in index file - %v", err)
 	}
 
-	slices.SortFunc(idx.keys, func(str1, str2 string) int {
-		if str1 < str2 {
-			return -1
-		} else if str1 > str2 {
-			return 1
-		} else {
-			return 0
-		}
-	})
+	// slices.SortFunc(idx.keys, func(str1, str2 string) int {
+	// 	if str1 < str2 {
+	// 		return -1
+	// 	} else if str1 > str2 {
+	// 		return 1
+	// 	} else {
+	// 		return 0
+	// 	}
+	// })
+	sortedKeys := idx.getKeysSlice()
 
-	for _, key := range idx.keys {
+	for _, key := range sortedKeys {
 		entry := idx.entries[key]
 
 		if err := writer.write(entry.toBytes()); err != nil {
@@ -219,13 +226,124 @@ func (idx *Index) readEntries(reader *checksum, count uint32) error {
 }
 
 func (idx *Index) storeEntry(entry *Entry) error {
-	idx.entries[entry.key()] = entry
-	idx.keys = append(idx.keys, entry.key())
+	idx.resolveConflicts(entry)
+	val, exists := idx.entries[entry.key()]
+	if !exists {
+		// first time to save it
+		idx.entries[entry.key()] = entry
+		idx.keys[entry.key()] = true
+		parentDirs := entry.ParentDirectories()
+		for _, parentname := range parentDirs {
+			if _, ok := idx.parents[parentname]; !ok {
+				idx.parents[parentname] = make(map[string]bool)
+			}
+			idx.parents[parentname][entry.key()] = true
+		}
+	} else if string(val.GetOid()) != string(entry.GetOid()) {
+		// modified
+		idx.entries[entry.key()] = entry
+	}
 
 	return nil
 }
+
+func (idx *Index) resolveConflicts(entry *Entry) {
+	/*
+		this function will make handle two things:
+		1- replacing a file with a directory
+		2- replacing a directory with a file
+	*/
+
+	idx.replacingFileWithDirectoryCheck(entry)
+	idx.replacingDirectoryWithFile(entry)
+
+}
+func (idx *Index) replacingFileWithDirectoryCheck(entry *Entry) {
+	/*
+		--> we will take the path and we will check if any of the parents of the new path
+		is located in our keys or not, if so, it means there was a file with the same name of a
+		parent directory if the given pathm, so we will remove it
+		... we can binary search in the ParentDirectories of the path
+	*/
+
+	check := func(target string) int {
+		_, inParents := idx.parents[target]
+		_, inKeys := idx.keys[target]
+
+		if inParents && !inKeys {
+			return 1
+		} else if !inParents && !inKeys {
+			return -1
+		}
+		return 0
+	}
+
+	parentDirectories := entry.ParentDirectories()
+
+	s, e := 0, len(parentDirectories)-1
+
+	ans := -1
+	for s <= e {
+		mid := s + (e-s)/2
+		state := check(parentDirectories[mid])
+		if state == 0 {
+			ans = mid
+			break
+		} else if state == 1 {
+			s = mid + 1
+		} else {
+			e = mid - 1
+		}
+	}
+
+	if ans == -1 { // No answer found, we don't need to remove anything
+		return
+	}
+
+	pathnameToRemove := parentDirectories[ans]
+	idx.removeEntry(pathnameToRemove)
+
+}
+
+func (idx *Index) replacingDirectoryWithFile(entry *Entry) {
+	/*
+		we have a parents map:
+		key1 => parentPathname
+		val1 => map:  key2 => filepathname, val2 => bool "always true"
+
+		so, if the entrypath exists as key1, that means it was a dir befor
+		we will remove it and also we will loop over key2 and remove the file paths from the keys attribute
+	*/
+
+	pathname := entry.GetPathname()
+
+	if innerMap, ok := idx.parents[pathname]; ok {
+		for filename := range innerMap {
+			idx.removeEntry(filename)
+		}
+	}
+
+	delete(idx.parents, pathname) // don't forget to remvoe the parent (directory)
+}
+
+func (idx *Index) removeEntry(pathname string) {
+	delete(idx.keys, pathname)
+	delete(idx.entries, pathname)
+}
 func (idx *Index) Clear() {
 	idx.entries = make(map[string]*Entry)
-	idx.keys = make([]string, 0)
+	idx.parents = make(map[string]map[string]bool)
+	idx.keys = make(map[string]bool, 0)
 	idx.isChanged = false
+}
+
+func (idx *Index) getKeysSlice() []string {
+	result := make([]string, 0)
+	for k := range idx.keys {
+		result = append(result, k)
+	}
+
+	slices.Sort(result)
+
+	return result
 }

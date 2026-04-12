@@ -1,11 +1,11 @@
 package index
 
 import (
+	"JIT/internals/utils"
 	"bytes"
 	"encoding/binary"
 	"fmt"
 	"path/filepath"
-	"strings"
 	"syscall"
 )
 
@@ -32,7 +32,6 @@ type Entry struct {
 }
 
 func newEntry(pathname string, oid []byte, stat *syscall.Stat_t) (*Entry, error) {
-
 	namelen := uint32(min(0xFFF, len(pathname)))
 	var mode uint32 = 0100644
 
@@ -154,15 +153,9 @@ func (e *Entry) GetPathname() string {
 func (e *Entry) GetOid() []byte {
 	return e.oid
 }
+
 func (e *Entry) ParentDirectories() []string {
-	prefixs := strings.Split(filepath.ToSlash(e.GetPathname()), "/")
-	parents := []string{}
-
-	for i := 1; i < len(prefixs); i++ {
-		parents = append(parents, strings.Join(prefixs[:i], "/"))
-	}
-
-	return parents
+	return utils.ParentDirectories(e.GetPathname())
 }
 func (e *Entry) Type() string {
 	return "IndexEntry"

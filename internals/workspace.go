@@ -16,11 +16,13 @@ type Workspace struct {
 func (w *Workspace) New(root string) error {
 	w.root = root
 	w.ignore = map[string]bool{
-		".":    true,
-		"..":   true,
-		".git": true,
-		".jit": true,
-		"bin":  true,
+		".":          true,
+		"..":         true,
+		".git":       true,
+		".jit":       true,
+		"bin":        true,
+		".env":       true,
+		".gitignore": true,
 	}
 	return nil
 }

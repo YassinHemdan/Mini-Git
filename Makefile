@@ -12,8 +12,10 @@ clean:
 	@rm -rf $(BIN_DIR) || true
 	@rm -rf .jit/ || true
 
-test: build
-	go test ./...
+# test: build
+# 	go test ./...
+test:
+	go test ./... -v
 
 build:
 	@mkdir -p $(BIN_DIR)
