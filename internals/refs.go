@@ -22,10 +22,10 @@ type Refs struct {
 	path_name string
 }
 
-func (r *Refs) New(path_name string) error {
-	r.path_name = path_name // this will be the /.jit
-
-	return nil
+func NewRefs(pathname string) (*Refs, error) {
+	return &Refs{
+		path_name: pathname,
+	}, nil
 }
 
 func (r *Refs) UpdateHead(data []byte) error {

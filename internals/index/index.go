@@ -2,6 +2,7 @@ package index
 
 import (
 	"JIT/internals/locks"
+	"JIT/internals/utils"
 	"bytes"
 	"encoding/binary"
 	"errors"
@@ -88,16 +89,6 @@ func (idx *Index) WriteUpdates() error {
 	if err := writer.write(header.Bytes()); err != nil {
 		return fmt.Errorf("Could not write in index file - %v", err)
 	}
-
-	// slices.SortFunc(idx.keys, func(str1, str2 string) int {
-	// 	if str1 < str2 {
-	// 		return -1
-	// 	} else if str1 > str2 {
-	// 		return 1
-	// 	} else {
-	// 		return 0
-	// 	}
-	// })
 	sortedKeys := idx.getKeysSlice()
 
 	for _, key := range sortedKeys {
@@ -247,22 +238,15 @@ func (idx *Index) storeEntry(entry *Entry) error {
 	return nil
 }
 
-func (idx *Index) resolveConflicts(entry *Entry) {
-	/*
-		this function will make handle two things:
-		1- replacing a file with a directory
-		2- replacing a directory with a file
-	*/
-
+func (idx *Index) resolveConflicts(entry *Entry) { // logl + n*l
 	idx.replacingFileWithDirectoryCheck(entry)
 	idx.replacingDirectoryWithFile(entry)
-
 }
-func (idx *Index) replacingFileWithDirectoryCheck(entry *Entry) {
+func (idx *Index) replacingFileWithDirectoryCheck(entry *Entry) { // O(L + LlogL), where n is the length file's ParentDirectories
 	/*
 		--> we will take the path and we will check if any of the parents of the new path
 		is located in our keys or not, if so, it means there was a file with the same name of a
-		parent directory if the given pathm, so we will remove it
+		parent directory of the given path, so we will remove it
 		... we can binary search in the ParentDirectories of the path
 	*/
 
@@ -301,32 +285,45 @@ func (idx *Index) replacingFileWithDirectoryCheck(entry *Entry) {
 	}
 
 	pathnameToRemove := parentDirectories[ans]
-	idx.removeEntry(pathnameToRemove)
+	idx.removeEntry(pathnameToRemove) // O(L)
 
 }
 
 func (idx *Index) replacingDirectoryWithFile(entry *Entry) {
 	/*
+		O(L * N):
+			where N is the length if the innerMap (#files under the current directory)
+			where L is the length if file's ParentDirectories
+	*/
+	/*
 		we have a parents map:
 		key1 => parentPathname
 		val1 => map:  key2 => filepathname, val2 => bool "always true"
 
-		so, if the entrypath exists as key1, that means it was a dir befor
-		we will remove it and also we will loop over key2 and remove the file paths from the keys attribute
+		so, if the filepath exists as key1, that means it was a dir before
+		we will remove it and also we will loop over key2 (all files under it) and remove them from our entries
 	*/
 
 	pathname := entry.GetPathname()
 
 	if innerMap, ok := idx.parents[pathname]; ok {
-		for filename := range innerMap {
-			idx.removeEntry(filename)
+		for filename := range innerMap { // O(L * N)
+			idx.removeEntry(filename) // O(L)
 		}
 	}
 
-	delete(idx.parents, pathname) // don't forget to remvoe the parent (directory)
+	delete(idx.parents, pathname) // don't forget to remove the parent (directory)
 }
 
-func (idx *Index) removeEntry(pathname string) {
+func (idx *Index) removeEntry(pathname string) { // O(L) where n is the length of file's ParentDirectories
+	pathParents := utils.ParentDirectories(pathname)
+	for _, curParent := range pathParents {
+		childsMap := idx.parents[curParent]
+		delete(childsMap, pathname) // delete the child
+		if len(childsMap) == 0 {    // if the map of childs got empty.. delete the parent
+			delete(idx.parents, curParent)
+		}
+	}
 	delete(idx.keys, pathname)
 	delete(idx.entries, pathname)
 }
@@ -346,4 +343,12 @@ func (idx *Index) getKeysSlice() []string {
 	slices.Sort(result)
 
 	return result
+}
+
+func (idx *Index) ReleaseLock() error {
+	if err := idx.lockfile.Rollback(); err != nil {
+		return fmt.Errorf("Could not release index lock - %v", err)
+	}
+
+	return nil
 }

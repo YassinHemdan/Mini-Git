@@ -24,13 +24,13 @@ type Database struct {
 	path  string
 }
 
-func (db *Database) New(path string) error {
-	db.count = 0
-	db.path = path
-	fmt.Println("New database created at", db.path)
-
-	return nil
+func NewDatabase(pathname string) (*Database, error) {
+	return &Database{
+		count: 0,
+		path:  pathname,
+	}, nil
 }
+
 
 func (db *Database) Store(object database.Object) error {
 	// objToStr := object

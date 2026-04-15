@@ -13,18 +13,20 @@ type Workspace struct {
 	ignore map[string]bool
 }
 
-func (w *Workspace) New(root string) error {
-	w.root = root
-	w.ignore = map[string]bool{
-		".":          true,
-		"..":         true,
-		".git":       true,
-		".jit":       true,
-		"bin":        true,
-		".env":       true,
-		".gitignore": true,
-	}
-	return nil
+func NewWorkspace(root string) (*Workspace, error) {
+	ignore := make(map[string]bool)
+	ignore["."] = true
+	ignore[".."] = true
+	ignore[".git"] = true
+	ignore[".jit"] = true
+	ignore[".env"] = true
+	ignore[".gitignore"] = true
+	ignore["bin"] = true
+
+	return &Workspace{
+		root:   root,
+		ignore: ignore,
+	}, nil
 }
 
 func (w *Workspace) GetPath() string {
@@ -48,7 +50,7 @@ func (w *Workspace) ListFiles(pathname string) ([]string, error) {
 			return nil, fmt.Errorf("Can't get dir's entries - %v", err)
 		}
 
-		var files []string
+		files := make([]string, 0)
 		for _, entry := range entries {
 			entryName := entry.Name()
 			if w.ignore[entryName] {
@@ -74,18 +76,15 @@ func (w *Workspace) ListFiles(pathname string) ([]string, error) {
 	return []string{relPath}, nil
 }
 
-func (w *Workspace) GetDirEntriesWithName(path string) ([]os.DirEntry, error) {
-	return os.ReadDir(path)
-}
 func (w *Workspace) GetFileState(fileName string) (os.FileInfo, error) {
-	return os.Stat(fileName)
+	return os.Stat(w.fullpath(fileName))
 }
 
 func (w *Workspace) GetDirState() os.FileMode {
 	return os.FileMode(040000)
 }
 func (w *Workspace) ReadFile(fileName string) ([]byte, error) {
-	file, err := os.Open(fileName)
+	file, err := os.Open(w.fullpath(fileName))
 	if err != nil {
 		return nil, err
 	}
@@ -98,4 +97,8 @@ func (w *Workspace) ReadFile(fileName string) ([]byte, error) {
 	}
 
 	return file_content.Bytes(), nil
+}
+
+func (w *Workspace) fullpath(pathname string) string {
+	return filepath.Join(w.root, pathname)
 }

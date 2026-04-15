@@ -523,10 +523,11 @@ func TestIndex_Add_ReplaceDirectoryWithFile(t *testing.T) {
 		t.Errorf("failed to stat file: %v", err)
 	}
 	tests := []struct {
-		name          string
-		entries       []testEntry
-		expectedPaths []string
-		wantError     bool
+		name            string
+		entries         []testEntry
+		expectedPaths   []string
+		wantError       bool
+		expectedParents map[string]map[string]bool
 	}{
 		{
 			name: "Replace directory with file v1 - single child removed",
@@ -534,9 +535,11 @@ func TestIndex_Add_ReplaceDirectoryWithFile(t *testing.T) {
 				"src/main.go",
 				"src",
 			),
-			expectedPaths: []string{"src"},
-			wantError:     false,
+			expectedPaths:   []string{"src"},
+			expectedParents: map[string]map[string]bool{},
+			wantError:       false,
 		},
+
 		{
 			name: "Replace directory with file v2 - multiple children removed",
 			entries: createEntries(
@@ -546,7 +549,10 @@ func TestIndex_Add_ReplaceDirectoryWithFile(t *testing.T) {
 				"internals/sub1",
 			),
 			expectedPaths: []string{"internals/sub1"},
-			wantError:     false,
+			expectedParents: map[string]map[string]bool{
+				"internals": {"internals/sub1": true},
+			},
+			wantError: false,
 		},
 
 		{
@@ -558,7 +564,10 @@ func TestIndex_Add_ReplaceDirectoryWithFile(t *testing.T) {
 				"a/b",
 			),
 			expectedPaths: []string{"a/b"},
-			wantError:     false,
+			expectedParents: map[string]map[string]bool{
+				"a": {"a/b": true},
+			},
+			wantError: false,
 		},
 
 		{
@@ -573,6 +582,10 @@ func TestIndex_Add_ReplaceDirectoryWithFile(t *testing.T) {
 				"lib/lexer/lex.go",
 				"lib/parser",
 			},
+			expectedParents: map[string]map[string]bool{
+				"lib":       {"lib/parser": true, "lib/lexer/lex.go": true},
+				"lib/lexer": {"lib/lexer/lex.go": true},
+			},
 			wantError: false,
 		},
 
@@ -584,8 +597,9 @@ func TestIndex_Add_ReplaceDirectoryWithFile(t *testing.T) {
 				"docs/tutorial.md",
 				"docs",
 			),
-			expectedPaths: []string{"docs"},
-			wantError:     false,
+			expectedPaths:   []string{"docs"},
+			expectedParents: map[string]map[string]bool{},
+			wantError:       false,
 		},
 
 		{
@@ -602,6 +616,12 @@ func TestIndex_Add_ReplaceDirectoryWithFile(t *testing.T) {
 				"project/src/utils/helpers.js",
 				"project/tests/test1.js",
 			},
+			expectedParents: map[string]map[string]bool{
+				"project":           {"project/src/components": true, "project/src/utils/helpers.js": true, "project/tests/test1.js": true},
+				"project/src":       {"project/src/components": true, "project/src/utils/helpers.js": true},
+				"project/src/utils": {"project/src/utils/helpers.js": true},
+				"project/tests":     {"project/tests/test1.js": true},
+			},
 			wantError: false,
 		},
 
@@ -615,7 +635,11 @@ func TestIndex_Add_ReplaceDirectoryWithFile(t *testing.T) {
 				"a/b/c",
 			),
 			expectedPaths: []string{"a/b/c"},
-			wantError:     false,
+			expectedParents: map[string]map[string]bool{
+				"a":   {"a/b/c": true},
+				"a/b": {"a/b/c": true},
+			},
+			wantError: false,
 		},
 
 		{
@@ -631,6 +655,10 @@ func TestIndex_Add_ReplaceDirectoryWithFile(t *testing.T) {
 			expectedPaths: []string{
 				"cmd/server",
 				"pkg/models",
+			},
+			expectedParents: map[string]map[string]bool{
+				"pkg": {"pkg/models": true},
+				"cmd": {"cmd/server": true},
 			},
 			wantError: false,
 		},
@@ -649,6 +677,11 @@ func TestIndex_Add_ReplaceDirectoryWithFile(t *testing.T) {
 				"app/configs/extra.json",
 				"app/configuration/base.json",
 			},
+			expectedParents: map[string]map[string]bool{
+				"app":               {"app/config": true, "app/configs/extra.json": true, "app/configuration/base.json": true},
+				"app/configs":       {"app/configs/extra.json": true},
+				"app/configuration": {"app/configuration/base.json": true},
+			},
 			wantError: false,
 		},
 
@@ -660,8 +693,9 @@ func TestIndex_Add_ReplaceDirectoryWithFile(t *testing.T) {
 				"a/b/c/d/e/f/g/l.txt",
 				"a",
 			),
-			expectedPaths: []string{"a"},
-			wantError:     false,
+			expectedPaths:   []string{"a"},
+			expectedParents: map[string]map[string]bool{},
+			wantError:       false,
 		},
 
 		{
@@ -674,7 +708,10 @@ func TestIndex_Add_ReplaceDirectoryWithFile(t *testing.T) {
 				"build/output",
 			),
 			expectedPaths: []string{"build/output"},
-			wantError:     false,
+			expectedParents: map[string]map[string]bool{
+				"build": {"build/output": true},
+			},
+			wantError: false,
 		},
 
 		{
@@ -689,6 +726,11 @@ func TestIndex_Add_ReplaceDirectoryWithFile(t *testing.T) {
 				"src/a/file1.txt",
 				"src/b",
 				"src/c/file3.txt",
+			},
+			expectedParents: map[string]map[string]bool{
+				"src":   {"src/a/file1.txt": true, "src/b": true, "src/c/file3.txt": true},
+				"src/a": {"src/a/file1.txt": true},
+				"src/c": {"src/c/file3.txt": true},
 			},
 			wantError: false,
 		},
@@ -709,6 +751,11 @@ func TestIndex_Add_ReplaceDirectoryWithFile(t *testing.T) {
 				"a/b/y.txt",
 				"a/x.txt",
 			},
+			expectedParents: map[string]map[string]bool{
+				"a":     {"a/x.txt": true, "a/b/y.txt": true, "a/b/c/z.txt": true, "a/b/c/d": true},
+				"a/b":   {"a/b/y.txt": true, "a/b/c/z.txt": true, "a/b/c/d": true},
+				"a/b/c": {"a/b/c/z.txt": true, "a/b/c/d": true},
+			},
 			wantError: false,
 		},
 
@@ -724,6 +771,10 @@ func TestIndex_Add_ReplaceDirectoryWithFile(t *testing.T) {
 				"data/posts/post1.json",
 				"data/users",
 			},
+			expectedParents: map[string]map[string]bool{
+				"data":       {"data/users": true, "data/posts/post1.json": true},
+				"data/posts": {"data/posts/post1.json": true},
+			},
 			wantError: false,
 		},
 
@@ -737,7 +788,10 @@ func TestIndex_Add_ReplaceDirectoryWithFile(t *testing.T) {
 				"a/b",
 			),
 			expectedPaths: []string{"a/b"},
-			wantError:     false,
+			expectedParents: map[string]map[string]bool{
+				"a": {"a/b": true},
+			},
+			wantError: false,
 		},
 
 		{
@@ -753,8 +807,9 @@ func TestIndex_Add_ReplaceDirectoryWithFile(t *testing.T) {
 				"dir/file8.txt",
 				"dir",
 			),
-			expectedPaths: []string{"dir"},
-			wantError:     false,
+			expectedPaths:   []string{"dir"},
+			expectedParents: map[string]map[string]bool{},
+			wantError:       false,
 		},
 
 		{
@@ -772,7 +827,8 @@ func TestIndex_Add_ReplaceDirectoryWithFile(t *testing.T) {
 				"README.md",
 				"src",
 			},
-			wantError: false,
+			expectedParents: map[string]map[string]bool{},
+			wantError:       false,
 		},
 
 		{
@@ -785,6 +841,11 @@ func TestIndex_Add_ReplaceDirectoryWithFile(t *testing.T) {
 			),
 			expectedPaths: []string{
 				"pkg/http/v2/server.go",
+			},
+			expectedParents: map[string]map[string]bool{
+				"pkg":         {"pkg/http/v2/server.go": true},
+				"pkg/http":    {"pkg/http/v2/server.go": true},
+				"pkg/http/v2": {"pkg/http/v2/server.go": true},
 			},
 			wantError: false,
 		},
@@ -803,6 +864,12 @@ func TestIndex_Add_ReplaceDirectoryWithFile(t *testing.T) {
 				"test_utils/helper.go",
 				"testing/integration/c.go",
 			},
+			expectedParents: map[string]map[string]bool{
+				"test":                {"test/unit": true},
+				"testing":             {"testing/integration/c.go": true},
+				"testing/integration": {"testing/integration/c.go": true},
+				"test_utils":          {"test_utils/helper.go": true},
+			},
 			wantError: false,
 		},
 
@@ -814,8 +881,9 @@ func TestIndex_Add_ReplaceDirectoryWithFile(t *testing.T) {
 				"only/dir/sub/file3.txt",
 				"only",
 			),
-			expectedPaths: []string{"only"},
-			wantError:     false,
+			expectedPaths:   []string{"only"},
+			expectedParents: map[string]map[string]bool{},
+			wantError:       false,
 		},
 	}
 	for _, tt := range tests {
@@ -846,6 +914,27 @@ func TestIndex_Add_ReplaceDirectoryWithFile(t *testing.T) {
 			for i, expectedPath := range tt.expectedPaths {
 				if expectedPath != resultPaths[i] {
 					t.Errorf("Entry[%d]: expected %s path but got %s", i, expectedPath, resultPaths[i])
+				}
+			}
+
+			if len(idx.parents) != len(tt.expectedParents) {
+				t.Fatalf("Expected %d parents but got %d", len(tt.expectedParents), len(idx.parents))
+			}
+
+			for dir, expectedChildren := range tt.expectedParents {
+				actualChildren, ok := idx.parents[dir]
+				if !ok {
+					t.Errorf("Parent '%s' not found", dir)
+					continue
+				}
+				if len(actualChildren) != len(expectedChildren) {
+					t.Errorf("Parent '%s': expected %d children but got %d", dir, len(expectedChildren), len(actualChildren))
+					continue
+				}
+				for child := range expectedChildren {
+					if _, ok := actualChildren[child]; !ok {
+						t.Errorf("Parent '%s': child '$s' not found", dir)
+					}
 				}
 			}
 		})
