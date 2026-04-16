@@ -69,6 +69,7 @@ func (h *CommandHelper) WriteFile(t *testing.T, name, contents string) {
 	if err := os.WriteFile(pathname, []byte(contents), 0644); err != nil {
 		t.Fatalf("Could not write file %s: %v", pathname, err)
 	}
+
 }
 
 func (h *CommandHelper) MakeExecutable(t *testing.T, name string) {
@@ -77,6 +78,14 @@ func (h *CommandHelper) MakeExecutable(t *testing.T, name string) {
 	pathname := filepath.Join(h.repoPath, name)
 	if err := os.Chmod(pathname, 0755); err != nil {
 		t.Fatalf("Could not make %s executable: %v", name, err)
+	}
+}
+func (h *CommandHelper) MakeUnreadable(t *testing.T, name string) {
+	t.Helper()
+
+	pathname := filepath.Join(h.repoPath, name)
+	if err := os.Chmod(pathname, 0000); err != nil {
+		t.Fatalf("Could not make %s unreadable: %v", name, err)
 	}
 }
 
@@ -89,4 +98,24 @@ func (h *CommandHelper) JitCommand(argv ...string) *CommandContext {
 	h.Cmd = Execute(h.repoPath, map[string]string{}, argv, h.Stdin, h.Stdout, h.Stderr)
 
 	return h.Cmd
+}
+
+func (h *CommandHelper) AssertStatus(t *testing.T, status int) {
+	t.Helper()
+	if status != h.Cmd.Status {
+		t.Errorf("Error: expected status %d but found %d", status, h.Cmd.Status)
+	}
+}
+
+func (h *CommandHelper) AssertStdout(t *testing.T, message string) {
+	t.Helper()
+	if message != h.Stdout.String() {
+		t.Errorf("Error: expected message '%s' but found '%s'", message, h.Stdout.String())
+	}
+}
+func (h *CommandHelper) AssertStderr(t *testing.T, message string) {
+	t.Helper()
+	if message != h.Stderr.String() {
+		t.Errorf("Error: expected message '%s' but found '%s'", message, h.Stdout.String())
+	}
 }

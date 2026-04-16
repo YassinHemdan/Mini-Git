@@ -34,20 +34,19 @@ func (w *Workspace) GetPath() string {
 }
 
 func (w *Workspace) ListFiles(pathname string) ([]string, error) {
-	// if the pathname is empty, we will use the root path
 	if len(pathname) == 0 {
 		pathname = w.root
 	}
 
 	info, err := os.Stat(pathname)
 	if err != nil {
-		return nil, fmt.Errorf("Can't get current path's stat - %v", err)
+		return nil, fmt.Errorf("Can't get current path's stat - %w", err)
 	}
 
 	if info.IsDir() {
 		entries, err := os.ReadDir(pathname)
 		if err != nil {
-			return nil, fmt.Errorf("Can't get dir's entries - %v", err)
+			return nil, fmt.Errorf("Can't get dir's entries - %w", err)
 		}
 
 		files := make([]string, 0)
@@ -61,7 +60,7 @@ func (w *Workspace) ListFiles(pathname string) ([]string, error) {
 			childFiles, err := w.ListFiles(childName)
 
 			if err != nil {
-				return nil, fmt.Errorf("Can't get dir's entries - %v", err)
+				return nil, fmt.Errorf("Can't get dir's entries - %w", err)
 			}
 
 			files = append(files, childFiles...)

@@ -1,13 +1,11 @@
 package commands
 
 import (
-	"JIT/internals"
+	"JIT/commands/utils"
 	database "JIT/internals/database"
 	"JIT/internals/index"
-	"JIT/internals/utils"
 	"encoding/hex"
 	"fmt"
-	"path/filepath"
 	"time"
 )
 
@@ -33,12 +31,12 @@ func CommitCommand(ctx *CommandContext) {
 		ctx.Status = 1
 		return
 	}
+	root_dir := ctx.Dir
+	repo, err := utils.Repo(root_dir)
 
-	jit_dir := filepath.Join(ctx.Dir, utils.JitMetadataDir)
-	repo, err := internals.NewRepository(jit_dir)
 	if err != nil {
 		fmt.Fprintf(ctx.Stderr, "Can't initialize repository: %v\n", err)
-		ctx.Status = 1
+		ctx.Status = 128
 		return
 	}
 
