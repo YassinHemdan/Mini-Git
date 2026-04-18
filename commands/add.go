@@ -25,7 +25,7 @@ func (h *addCommandHandler) run() {
 	fmt.Println("Add command called")
 	if len(h.ctx.Args) <= 0 {
 		fmt.Fprintf(h.ctx.Stderr, "No files provided to add\n")
-		h.ctx.Status = 1
+		h.ctx.Status = 128
 		return
 	}
 	root_dir := h.ctx.Dir

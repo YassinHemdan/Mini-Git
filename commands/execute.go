@@ -11,6 +11,7 @@ var COMMANDS = map[string]CommandFunc{
 	"init":   InitCommand,
 	"add":    AddCommand,
 	"commit": CommitCommand,
+	"status": StatusCommand,
 }
 
 func Execute(

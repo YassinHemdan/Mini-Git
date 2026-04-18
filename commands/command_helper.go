@@ -16,6 +16,7 @@ type CommandHelper struct {
 	Stdin      *strings.Reader
 	Stdout     *bytes.Buffer
 	Stderr     *bytes.Buffer
+	Env        map[string]string
 	Cmd        *CommandContext
 }
 
@@ -29,6 +30,7 @@ func NewCommandHelper(t *testing.T) *CommandHelper {
 
 	helper := &CommandHelper{
 		repoPath: repoDir,
+		Env:      make(map[string]string),
 	}
 
 	helper.JitCommand("init")
@@ -95,9 +97,24 @@ func (h *CommandHelper) JitCommand(argv ...string) *CommandContext {
 	h.Stderr = &bytes.Buffer{}
 
 	fmt.Println(argv)
-	h.Cmd = Execute(h.repoPath, map[string]string{}, argv, h.Stdin, h.Stdout, h.Stderr)
+	h.Cmd = Execute(h.repoPath, h.Env, argv, h.Stdin, h.Stdout, h.Stderr)
 
 	return h.Cmd
+}
+
+func (h *CommandHelper) Commit(t *testing.T, message string) {
+	// h.setStdin(message)
+	h.setEnv("JIT_AUTHOR_NAME", "A. U. Thor")
+	h.setEnv("JIT_AUTHOR_EMAIL", "author@example.com")
+	h.JitCommand("commit", "-m", message)
+}
+
+// func (h *CommandHelper) setStdin(content string) {
+// 	h.Stdin = strings.NewReader(content)
+// }
+
+func (h *CommandHelper) setEnv(key, value string) {
+	h.Env[key] = value
 }
 
 func (h *CommandHelper) AssertStatus(t *testing.T, status int) {

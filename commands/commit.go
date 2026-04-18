@@ -40,6 +40,7 @@ func CommitCommand(ctx *CommandContext) {
 		return
 	}
 
+	// notice here that we only need to Load the index not to LoadForUpdate
 	if _, err = repo.Index().Load(); err != nil {
 		fmt.Fprintf(ctx.Stderr, "Failed to load index: %v\n", err)
 		ctx.Status = 1

@@ -352,3 +352,8 @@ func (idx *Index) ReleaseLock() error {
 
 	return nil
 }
+
+func (idx *Index) IsTracked(pathname string) bool {
+	_, ok := idx.keys[pathname]
+	return ok
+}
