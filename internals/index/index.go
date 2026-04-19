@@ -354,6 +354,7 @@ func (idx *Index) ReleaseLock() error {
 }
 
 func (idx *Index) IsTracked(pathname string) bool {
-	_, ok := idx.keys[pathname]
-	return ok
+	_, ok1 := idx.keys[pathname]
+	_, ok2 := idx.parents[pathname] // a directory is tracked, no need to check for its childs
+	return ok1 || ok2
 }

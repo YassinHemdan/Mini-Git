@@ -74,6 +74,14 @@ func (h *CommandHelper) WriteFile(t *testing.T, name, contents string) {
 
 }
 
+func (h *CommandHelper) Mkdir(t *testing.T, name string) {
+	t.Helper()
+	pathname := filepath.Join(h.repoPath, name)
+	if err := os.MkdirAll(pathname, 0744); err != nil {
+		t.Fatalf("Could not create directories for %s - %v", name, err)
+	}
+}
+
 func (h *CommandHelper) MakeExecutable(t *testing.T, name string) {
 	t.Helper()
 

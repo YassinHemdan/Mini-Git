@@ -293,13 +293,13 @@ func TestStatus_UntrackedFiles(t *testing.T) {
 
 	t.Run("SiblingDirsWithDifferentTrackingStates", func(t *testing.T) {
 		helper := NewCommandHelper(t)
-		// dir1: fully untracked
+
 		helper.WriteFile(t, "dir1/file1.txt", "")
 		helper.WriteFile(t, "dir1/file2.txt", "")
-		// dir2: partially tracked
+
 		helper.WriteFile(t, "dir2/tracked.txt", "")
 		helper.WriteFile(t, "dir2/untracked.txt", "")
-		// dir3: fully tracked
+
 		helper.WriteFile(t, "dir3/file1.txt", "")
 
 		helper.JitCommand("add", "dir2/tracked.txt", "dir3/file1.txt")
@@ -343,60 +343,141 @@ func TestStatus_UntrackedFiles(t *testing.T) {
 				format("??", "file5.txt")+
 				format("??", "newdir/"))
 	})
-}
 
-func TestStatus_ListUntrackedDirectoriesV2(t *testing.T) {
-	t.Run("V1", func(t *testing.T) {
+	t.Run("ignores empty directory", func(t *testing.T) {
 		helper := NewCommandHelper(t)
-		helper.WriteFile(t, "file.txt", "")
-		helper.WriteFile(t, "dir/another.txt", "")
-		assertStatus(t, helper, format("??", "dir/")+format("??", "file.txt"))
+		helper.Mkdir(t, "empty-dir")
+		assertStatus(t, helper, "")
+	})
 
+	t.Run("ignores nested empty directories", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.Mkdir(t, "outer/inner")
+		assertStatus(t, helper, "")
+	})
+
+	t.Run("ignores deeply nested empty directories", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.Mkdir(t, "a/b/c/d/e")
+		assertStatus(t, helper, "")
+	})
+
+	t.Run("ignores multiple empty directories", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.Mkdir(t, "empty1")
+		helper.Mkdir(t, "empty2")
+		helper.Mkdir(t, "empty3")
+		assertStatus(t, helper, "")
+	})
+
+	t.Run("ignores sibling empty directories inside a parent", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.Mkdir(t, "parent/child1")
+		helper.Mkdir(t, "parent/child2")
+		helper.Mkdir(t, "parent/child3")
+		assertStatus(t, helper, "")
+	})
+
+	t.Run("lists file but ignores empty sibling directory", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.WriteFile(t, "hello.txt", "hello")
+		helper.Mkdir(t, "empty-dir")
+		assertStatus(t, helper, "?? hello.txt\n")
+	})
+
+	t.Run("lists directory with file but ignores empty sibling directory", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.WriteFile(t, "full-dir/file.txt", "content")
+		helper.Mkdir(t, "empty-dir")
+		assertStatus(t, helper, "?? full-dir/\n")
+	})
+
+	t.Run("lists file inside directory that also has empty subdirectory", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.WriteFile(t, "parent/file.txt", "content")
+		helper.Mkdir(t, "parent/empty-child")
+		assertStatus(t, helper, "?? parent/\n")
+	})
+
+	t.Run("ignores empty directory alongside tracked files", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.WriteFile(t, "tracked.txt", "content")
+		helper.JitCommand("add", "tracked.txt")
+		helper.Commit(t, "add tracked file")
+
+		helper.Mkdir(t, "empty-dir")
+		assertStatus(t, helper, "")
+	})
+
+	t.Run("ignores empty directory but shows untracked file alongside tracked files", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.WriteFile(t, "tracked.txt", "content")
+		helper.JitCommand("add", "tracked.txt")
+		helper.Commit(t, "add tracked file")
+
+		helper.Mkdir(t, "empty-dir")
+		helper.WriteFile(t, "untracked.txt", "new content")
+		assertStatus(t, helper, "?? untracked.txt\n")
+	})
+
+	t.Run("directory with one file and multiple empty siblings", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.WriteFile(t, "project/src/main.go", "package main")
+		helper.Mkdir(t, "project/docs")
+		helper.Mkdir(t, "project/tests")
+		helper.Mkdir(t, "project/build")
+		assertStatus(t, helper, "?? project/\n")
+	})
+
+	t.Run("file at root with many nested empty directories", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.WriteFile(t, "readme.txt", "hello")
+		helper.Mkdir(t, "a/b/c")
+		helper.Mkdir(t, "x/y/z")
+		helper.Mkdir(t, "empty")
+		assertStatus(t, helper, "?? readme.txt\n")
+	})
+
+	t.Run("previously empty directory becomes non-empty", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.Mkdir(t, "dir")
+		assertStatus(t, helper, "")
+
+		helper.WriteFile(t, "dir/file.txt", "content")
+		assertStatus(t, helper, "?? dir/\n")
+	})
+
+	t.Run("tree with empty leaves only", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.Mkdir(t, "root/branch1/leaf1")
+		helper.Mkdir(t, "root/branch1/leaf2")
+		helper.Mkdir(t, "root/branch2/leaf1")
+		assertStatus(t, helper, "")
+	})
+
+	t.Run("tree with one file deep in nested directories", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.Mkdir(t, "root/branch1/leaf1")
+		helper.Mkdir(t, "root/branch1/leaf2")
+		helper.WriteFile(t, "root/branch2/leaf1/file.txt", "content")
+		assertStatus(t, helper, "?? root/\n")
+	})
+
+	t.Run("complex: tracked files, untracked files, and empty directories", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+
+		helper.WriteFile(t, "tracked1.txt", "content1")
+		helper.WriteFile(t, "src/tracked2.txt", "content2")
 		helper.JitCommand("add", ".")
-		helper.Commit(t, "first commit")
+		helper.Commit(t, "initial commit")
 
-		helper.WriteFile(t, "file2.txt", "")
-		helper.WriteFile(t, "dir/another2.txt", "")
-		assertStatus(t, helper, format("??", "dir/another2.txt")+format("??", "file2.txt"))
-	})
+		helper.WriteFile(t, "untracked.txt", "new")
+		helper.WriteFile(t, "lib/helper.go", "package lib")
+		helper.Mkdir(t, "empty1")
+		helper.Mkdir(t, "empty2/nested")
+		helper.Mkdir(t, "src/empty-child")
 
-	t.Run("V2", func(t *testing.T) {
-		helper := NewCommandHelper(t)
-		helper.WriteFile(t, "file.txt", "")
-		helper.WriteFile(t, "dir/another1.txt", "")
-		helper.WriteFile(t, "dir/another2.txt", "")
-		assertStatus(t, helper, format("??", "dir/")+format("??", "file.txt"))
-
-		helper.JitCommand("add", "dir/another1.txt")
-		helper.Commit(t, "first commit")
-
-		assertStatus(t, helper, format("??", "dir/another2.txt")+format("??", "file.txt"))
-	})
-	t.Run("V3", func(t *testing.T) {
-		helper := NewCommandHelper(t)
-		helper.WriteFile(t, "file1.txt", "")
-		helper.WriteFile(t, "file2.txt", "")
-		helper.WriteFile(t, "dir/file4.txt", "")
-		helper.WriteFile(t, "dir/sub1/file5.txt", "")
-		helper.WriteFile(t, "dir/sub1/file6.txt", "")
-		helper.WriteFile(t, "dir/sub1/file7.txt", "")
-		helper.WriteFile(t, "dir/sub2/file8.txt", "")
-		helper.WriteFile(t, "dir/sub2/file9.txt", "")
-		helper.WriteFile(t, "dir/sub2/file10.txt", "")
-		assertStatus(t, helper,
-			format("??", "dir/")+
-				format("??", "file1.txt")+
-				format("??", "file2.txt"))
-
-		helper.JitCommand("add", "file1.txt", "file2.txt")
-		helper.Commit(t, "first commit")
-
-		assertStatus(t, helper, format("??", "dir/"))
-
-		helper.JitCommand("add", "dir/file4.txt")
-		helper.Commit(t, "second commit")
-
-		assertStatus(t, helper, format("??", "dir/sub1/")+format("??", "dir/sub2/"))
+		assertStatus(t, helper, "?? lib/\n?? untracked.txt\n")
 	})
 }
 
