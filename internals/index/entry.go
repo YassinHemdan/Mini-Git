@@ -33,12 +33,7 @@ type Entry struct {
 
 func newEntry(pathname string, oid []byte, stat *syscall.Stat_t) (*Entry, error) {
 	namelen := uint32(min(0xFFF, len(pathname)))
-	var mode uint32 = 0100644
-
-	if stat.Mode&syscall.S_IFREG != 0 && stat.Mode&0111 != 0 {
-		mode = 0100755
-	}
-
+	mode := modeForStat(stat)
 	return &Entry{
 		ctime:     uint32(stat.Ctim.Sec),
 		ctimeNsec: uint32(stat.Ctim.Nsec),
@@ -113,6 +108,15 @@ func ParseEntry(data []byte) (*Entry, error) {
 		path:      path,
 	}, nil
 }
+func modeForStat(stat *syscall.Stat_t) uint32 {
+	var mode uint32 = 0100644
+
+	if stat.Mode&syscall.S_IFREG != 0 && stat.Mode&0111 != 0 {
+		mode = 0100755
+	}
+
+	return mode
+}
 func (e *Entry) toBytes() []byte {
 	buffer := new(bytes.Buffer)
 
@@ -159,4 +163,28 @@ func (e *Entry) ParentDirectories() []string {
 }
 func (e *Entry) Type() string {
 	return "IndexEntry"
+}
+
+func (e *Entry) IsMatchedStat(stat *syscall.Stat_t) bool {
+	return (e.size == 0 || uint32(stat.Size) == e.size) && (e.mode == modeForStat(stat))
+}
+func (e *Entry) IsMatchedTime(stat *syscall.Stat_t) bool {
+	return e.ctime == uint32(stat.Ctim.Sec) &&
+		e.ctimeNsec == uint32(stat.Ctim.Nsec) &&
+		e.mtime == uint32(stat.Mtim.Sec) &&
+		e.mtimeNsec == uint32(stat.Mtim.Nsec)
+}
+func (e *Entry) updateState(stat *syscall.Stat_t) {
+	// lets change the name to check if it will really changes
+	// e.path = "WRONG PATH"
+	e.ctime = uint32(stat.Ctim.Sec)
+	e.ctimeNsec = uint32(stat.Ctim.Nsec)
+	e.mtime = uint32(stat.Mtim.Sec)
+	e.mtimeNsec = uint32(stat.Mtim.Nsec)
+	e.dev = uint32(stat.Dev)
+	e.ino = uint32(stat.Ino)
+	e.mode = modeForStat(stat)
+	e.uid = stat.Uid
+	e.gid = stat.Gid
+	e.size = uint32(stat.Size)
 }

@@ -29,7 +29,6 @@ type Index struct {
 }
 
 func NewIndex(pathname string) (*Index, error) {
-	// fmt.Println("Index name = ", pathname)
 	lf := locks.LockFile{}
 	if err := lf.New(pathname); err != nil {
 		return nil, fmt.Errorf("Could not create an index file - %v", err)
@@ -72,6 +71,7 @@ func (idx *Index) GetEntries() []*Entry {
 
 	return entries
 }
+
 func (idx *Index) WriteUpdates() error {
 	// we will not acquire a lock here, it should be already acquired when reading it
 
@@ -111,6 +111,7 @@ func (idx *Index) WriteUpdates() error {
 
 	return nil
 }
+
 func (idx *Index) LoadForUpdate() (bool, error) {
 	if isLocked, err := idx.lockfile.HoldForUpdate(); !isLocked || err != nil {
 		return false, fmt.Errorf("Couldn't acquire lock on index file - %v", err)
@@ -123,6 +124,7 @@ func (idx *Index) LoadForUpdate() (bool, error) {
 
 	return verified, nil
 }
+
 func (idx *Index) Load() (bool, error) {
 	idx.Clear()
 	file, err := idx.openIndexFile()
@@ -156,6 +158,7 @@ func (idx *Index) openIndexFile() (*os.File, error) {
 	}
 	return file, nil
 }
+
 func (idx *Index) readHeader(reader *checksum) (uint32, error) {
 	data, err := reader.read(HEADER_SIZE)
 	if err != nil {
@@ -242,6 +245,7 @@ func (idx *Index) resolveConflicts(entry *Entry) { // logl + n*l
 	idx.replacingFileWithDirectoryCheck(entry)
 	idx.replacingDirectoryWithFile(entry)
 }
+
 func (idx *Index) replacingFileWithDirectoryCheck(entry *Entry) { // O(L + LlogL), where n is the length file's ParentDirectories
 	/*
 		--> we will take the path and we will check if any of the parents of the new path
@@ -327,6 +331,7 @@ func (idx *Index) removeEntry(pathname string) { // O(L) where n is the length o
 	delete(idx.keys, pathname)
 	delete(idx.entries, pathname)
 }
+
 func (idx *Index) Clear() {
 	idx.entries = make(map[string]*Entry)
 	idx.parents = make(map[string]map[string]bool)
@@ -357,4 +362,9 @@ func (idx *Index) IsTracked(pathname string) bool {
 	_, ok1 := idx.keys[pathname]
 	_, ok2 := idx.parents[pathname] // a directory is tracked, no need to check for its childs
 	return ok1 || ok2
+}
+
+func (idx *Index) UpdateEntryStat(entry *Entry, stat *syscall.Stat_t) {
+	entry.updateState(stat)
+	idx.isChanged = true
 }

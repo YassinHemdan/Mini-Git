@@ -80,18 +80,7 @@ func (h *addCommandHandler) addToIdx(path string) error {
 		return err
 	}
 
-	isExecutable, err := (func() (bool, error) {
-		fileInfo, err := h.repo.Workspace().GetFileState(path)
-		if err != nil {
-			return false, err
-		}
-
-		if fileInfo.Mode()&0111 != 0 {
-			return true, nil
-		}
-		return false, nil
-	})()
-
+	isExecutable, err := h.repo.Workspace().IsExecutable(path)
 	if err != nil {
 		return err
 	}

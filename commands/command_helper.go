@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 type CommandHelper struct {
@@ -74,6 +75,29 @@ func (h *CommandHelper) WriteFile(t *testing.T, name, contents string) {
 
 }
 
+func (h *CommandHelper) Touch(t *testing.T, name string) {
+	t.Helper()
+	pathname := filepath.Join(h.repoPath, name)
+	now := time.Now()
+
+	if err := os.Chtimes(pathname, now, now); err != nil {
+		file, err := os.Create(pathname)
+
+		if err != nil {
+			t.Fatalf("Could not touch file %s: %v", pathname, err)
+		}
+		file.Close()
+	}
+}
+
+func (h *CommandHelper) Delete(t *testing.T, name string) {
+	t.Helper()
+	pathname := filepath.Join(h.repoPath, name)
+	if err := os.RemoveAll(pathname); err != nil {
+		t.Fatalf("Could not delete %s - %v", pathname, err)
+	}
+}
+
 func (h *CommandHelper) Mkdir(t *testing.T, name string) {
 	t.Helper()
 	pathname := filepath.Join(h.repoPath, name)
@@ -111,15 +135,11 @@ func (h *CommandHelper) JitCommand(argv ...string) *CommandContext {
 }
 
 func (h *CommandHelper) Commit(t *testing.T, message string) {
-	// h.setStdin(message)
 	h.setEnv("JIT_AUTHOR_NAME", "A. U. Thor")
 	h.setEnv("JIT_AUTHOR_EMAIL", "author@example.com")
 	h.JitCommand("commit", "-m", message)
+	time.Sleep(5 * time.Millisecond) // flaky tests. Should we handle them in a different way ??
 }
-
-// func (h *CommandHelper) setStdin(content string) {
-// 	h.Stdin = strings.NewReader(content)
-// }
 
 func (h *CommandHelper) setEnv(key, value string) {
 	h.Env[key] = value

@@ -25,7 +25,6 @@ func TestAdd_ExecutableFile(t *testing.T) {
 		{"100755", "file1.txt"},
 	})
 }
-
 func TestAdd_MultipleFiles(t *testing.T) {
 	helper := NewCommandHelper(t)
 

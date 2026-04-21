@@ -152,3 +152,15 @@ func (w *Workspace) ReadFile(fileName string) ([]byte, error) {
 func (w *Workspace) fullpath(pathname string) string {
 	return filepath.Join(w.root, pathname)
 }
+
+func (w *Workspace) IsExecutable(pathname string) (bool, error) {
+	fileInfo, err := w.GetFileState(pathname)
+	if err != nil {
+		return false, err
+	}
+
+	if fileInfo.Mode()&0111 != 0 {
+		return true, nil
+	}
+	return false, nil
+}

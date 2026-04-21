@@ -31,21 +31,13 @@ func NewDatabase(pathname string) (*Database, error) {
 	}, nil
 }
 
-
 func (db *Database) Store(object database.Object) error {
-	// objToStr := object
-	data := []byte(fmt.Sprintf("%s %d\x00", object.Type(), len(object.ToString())))
-	data = append(data, object.ToString()...)
-
-	var encoded_data bytes.Buffer
-	if err := binary.Write(&encoded_data, binary.BigEndian, data); err != nil {
+	content, err := db.serializeObject(object)
+	if err != nil {
 		return err
 	}
-
-	objectId := sha1.Sum(encoded_data.Bytes())
-	object.SetOid(objectId[:])
-
-	return db.writeObject(object.GetOid(), encoded_data.Bytes())
+	object.SetOid(db.hashContent(content))
+	return db.writeObject(object.GetOid(), content)
 }
 
 func (db *Database) writeObject(oid, data []byte) error {
@@ -94,4 +86,28 @@ func (db *Database) generateTmpObjectName(hex_oid string) string {
 
 func (db *Database) GetChanges() int {
 	return db.count
+}
+func (db *Database) HashObject(object database.Object) ([]byte, error) {
+	content, err := db.serializeObject(object)
+	if err != nil {
+		return nil, err
+	}
+	return db.hashContent(content), nil
+}
+
+func (db *Database) serializeObject(object database.Object) ([]byte, error) {
+	data := []byte(fmt.Sprintf("%s %d\x00", object.Type(), len(object.ToString())))
+	data = append(data, object.ToString()...)
+
+	var encoded_data bytes.Buffer
+	if err := binary.Write(&encoded_data, binary.BigEndian, data); err != nil {
+		return nil, err
+	}
+
+	return encoded_data.Bytes(), nil
+}
+
+func (db *Database) hashContent(content []byte) []byte {
+	objectId := sha1.Sum(content)
+	return objectId[:]
 }
