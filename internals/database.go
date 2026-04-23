@@ -1,7 +1,5 @@
 package internals
 
-// lets import the Object
-
 import (
 	database "JIT/internals/database"
 	"JIT/internals/utils"
@@ -11,12 +9,12 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
-	"strings"
+	"path/filepath"
 )
 
 type IDatabase interface {
 	New(string) error
-	Store(database.Object) error // we need to import it
+	Store(database.Object) error
 }
 
 type Database struct {
@@ -41,10 +39,11 @@ func (db *Database) Store(object database.Object) error {
 }
 
 func (db *Database) writeObject(oid, data []byte) error {
-	oid_hex := fmt.Sprintf("%x", oid)
-	object_dir := strings.Join([]string{db.path, oid_hex[:2]}, string(os.PathSeparator))
-	object_path := strings.Join([]string{object_dir, oid_hex[2:]}, string(os.PathSeparator))
-
+	// oid_hex := fmt.Sprintf("%x", oid)
+	// object_dir := strings.Join([]string{db.path, oid_hex[:2]}, string(os.PathSeparator))
+	// object_path := strings.Join([]string{object_dir, oid_hex[2:]}, string(os.PathSeparator))
+	object_path := db.objectPath(oid)
+	object_dir := filepath.Dir(object_path)
 	if _, err := os.Stat(object_path); err == nil {
 		return nil
 	}
@@ -64,7 +63,8 @@ func (db *Database) writeObject(oid, data []byte) error {
 
 	zw.Close()
 
-	temp_file, err := os.CreateTemp(object_dir, db.generateTmpObjectName(oid_hex))
+	// temp_file, err := os.CreateTemp(object_dir, db.generateTmpObjectName(oid_hex))
+	temp_file, err := os.CreateTemp(object_dir, db.generateTmpObjectName(oid))
 
 	if err != nil {
 		return err
@@ -79,9 +79,9 @@ func (db *Database) writeObject(oid, data []byte) error {
 	return os.Rename(temp_file.Name(), object_path)
 }
 
-func (db *Database) generateTmpObjectName(hex_oid string) string {
+func (db *Database) generateTmpObjectName(oid []byte) string {
 
-	return fmt.Sprintf("tmp_obj_%x", hex_oid[0:3])
+	return fmt.Sprintf("tmp_obj_%x", oid[0:3])
 }
 
 func (db *Database) GetChanges() int {
@@ -110,4 +110,64 @@ func (db *Database) serializeObject(object database.Object) ([]byte, error) {
 func (db *Database) hashContent(content []byte) []byte {
 	objectId := sha1.Sum(content)
 	return objectId[:]
+}
+
+func (db *Database) objectPath(oid []byte) string {
+	oid_hex := fmt.Sprintf("%x", oid)
+	return filepath.Join(db.path, oid_hex[:2], oid_hex[2:])
+}
+
+/*
+	So far we were writing data to our database
+	Now we want to load the data from the database
+	For a commit, we take the tree oid from it and load it from the db
+	then from this tree, we loop on its entries
+		if the current entry is a tree, we recurse on it
+		if the current entry is a blob, we return its oid, mode, ....
+
+	So now we need to implement a function called load and it takes a [] byte oid
+	and returns an object for us
+
+*/
+
+// func (db *Database) load(oid []byte) database.Object {
+
+// }
+
+// for now, we will make sure that we could get the type and the size of the current object
+func (db *Database) readObject(oid []byte) {
+	// objectPath := db.objectPath(oid)
+	// compressedData, err := os.ReadFile(objectPath)
+	// if err != nil {
+	// 	return "", -1, err
+	// }
+
+	// reader, err := zlib.NewReader(bytes.NewReader(compressedData))
+	// if err != nil {
+	// 	return "", -1, err
+	// }
+
+	// defer reader.Close()
+
+	// data, err := io.ReadAll(reader)
+	// if err != nil {
+	// 	return "", -1, err
+	// }
+
+	// spaceIdx := bytes.IndexByte(data, ' ')
+	// nullIdx := bytes.IndexByte(data, 0)
+
+	// if spaceIdx == -1 || nullIdx == -1 {
+	// 	return "", -1, fmt.Errorf("invalid object format: no space or null terminator found")
+	// }
+
+	// objectType := string(data[:spaceIdx])
+	// sizeStr := string(data[spaceIdx+1 : nullIdx])
+	// objectSize, err := strconv.Atoi(sizeStr)
+
+	// if err != nil {
+	// 	return "", -1, fmt.Errorf("invalid object size: %v", err)
+	// }
+
+	// return objectType, objectSize, nil
 }

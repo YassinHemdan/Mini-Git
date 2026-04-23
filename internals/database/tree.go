@@ -91,14 +91,6 @@ func (t *Tree) GetMode() string {
 
 func (t *Tree) ParentDirectories() []string {
 	return utils.ParentDirectories(t.GetPathname())
-	// prefixs := strings.Split(filepath.ToSlash(t.GetPathname()), "/")
-	// parents := []string{}
-
-	// for i := 1; i < len(prefixs); i++ {
-	// 	parents = append(parents, strings.Join(prefixs[:i], "/"))
-	// }
-
-	// return parents
 }
 
 func (t *Tree) SetTreePathname(pathname string) {

@@ -53,7 +53,7 @@ func (h *statusHelper) run() {
 
 	h.detectChanges()
 	h.printStatus()
-	
+
 	if err := h.repo.Index().WriteUpdates(); err != nil {
 		fmt.Fprintf(h.ctx.Stderr, "Couldn't update Index: %v\n", err)
 		h.ctx.Status = 128
@@ -218,14 +218,6 @@ func (h *statusHelper) createBlob(pathname string) (*database.Blob, error) {
 	if err != nil {
 		return nil, err
 	}
-	blob := database.Blob{}
-	isExecutable, err := h.repo.Workspace().IsExecutable(pathname)
-	if err != nil {
-		return nil, err
-	}
-	if err := blob.New(data, pathname, isExecutable); err != nil {
-		return nil, err
-	}
-
-	return &blob, nil
+	blob := database.NewBlob(data)
+	return blob, nil
 }

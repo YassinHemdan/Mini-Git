@@ -80,17 +80,9 @@ func (h *addCommandHandler) addToIdx(path string) error {
 		return err
 	}
 
-	isExecutable, err := h.repo.Workspace().IsExecutable(path)
-	if err != nil {
-		return err
-	}
+	blob := database.NewBlob(file_content)
 
-	blob := database.Blob{}
-	if err := blob.New(file_content, path, isExecutable); err != nil {
-		return err
-	}
-
-	if err := h.repo.Database().Store(&blob); err != nil {
+	if err := h.repo.Database().Store(blob); err != nil {
 		return err
 	}
 
@@ -110,7 +102,6 @@ func (h *addCommandHandler) addToIdx(path string) error {
 	}
 
 	return nil
-	// fmt.Printf("Adding file: %s\n", fileName)
 }
 
 func (h *addCommandHandler) expandedPaths() ([]string, error) {
