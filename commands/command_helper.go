@@ -45,6 +45,7 @@ func NewCommandHelper(t *testing.T) *CommandHelper {
 func (h *CommandHelper) RepoPath() string {
 	return h.repoPath
 }
+
 func (h *CommandHelper) Repo(t *testing.T) *internals.Repository {
 	t.Helper()
 
@@ -114,6 +115,7 @@ func (h *CommandHelper) MakeExecutable(t *testing.T, name string) {
 		t.Fatalf("Could not make %s executable: %v", name, err)
 	}
 }
+
 func (h *CommandHelper) MakeUnreadable(t *testing.T, name string) {
 	t.Helper()
 
@@ -158,9 +160,12 @@ func (h *CommandHelper) AssertStdout(t *testing.T, message string) {
 		t.Errorf("Error: expected message '%s' but found '%s'", message, h.Stdout.String())
 	}
 }
+
 func (h *CommandHelper) AssertStderr(t *testing.T, message string) {
 	t.Helper()
 	if message != h.Stderr.String() {
 		t.Errorf("Error: expected message '%s' but found '%s'", message, h.Stdout.String())
 	}
 }
+
+// func (h *CommandHelper) Load(t *testing.T)

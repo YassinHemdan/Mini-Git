@@ -51,6 +51,14 @@ func newEntry(pathname string, oid []byte, stat *syscall.Stat_t) (*Entry, error)
 	}, nil
 }
 
+func NewEntry(pathname string, oid []byte, mode uint32) *Entry {
+	return &Entry{
+		oid:  oid,
+		path: pathname,
+		mode: mode,
+	}
+}
+
 func ParseEntry(data []byte) (*Entry, error) {
 	if len(data) < ENTRY_MIN_SIZE {
 		return nil, fmt.Errorf("entry data too short: %d bytes", len(data))
@@ -162,7 +170,10 @@ func (e *Entry) ParentDirectories() []string {
 	return utils.ParentDirectories(e.GetPathname())
 }
 func (e *Entry) Type() string {
-	return "IndexEntry"
+	if e.GetMode() == "40000"{
+		return "tree"
+	}
+	return "blob"
 }
 
 func (e *Entry) IsMatchedStat(stat *syscall.Stat_t) bool {

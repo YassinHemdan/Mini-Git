@@ -40,12 +40,15 @@ func (r *Refs) UpdateHead(data []byte) error {
 	if err != nil {
 		return err
 	}
+
 	if !success {
 		return &lockDenied{message: "Could not acquire lock on file: " + r.getHeadPath()}
 	}
-	if err := lockfile.Write(fmt.Sprintf("%x\n", data)); err != nil {
+
+	if err := lockfile.Write(fmt.Sprintf("%x", data)); err != nil {
 		return fmt.Errorf("Error: Couldn't make write to lockfile - %v", err)
 	}
+
 	if err := lockfile.Save(); err != nil {
 		return fmt.Errorf("Error: Couldn't make save the lockfile - %v", err)
 	}

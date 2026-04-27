@@ -1,9 +1,13 @@
 package internals
 
 import (
+	index "JIT/internals/index"
 	"JIT/internals/utils"
+	scanner "JIT/utils"
+	"encoding/hex"
 	"fmt"
 	"path/filepath"
+	"strconv"
 )
 
 type Tree struct {
@@ -13,17 +17,69 @@ type Tree struct {
 	keys     []string
 }
 
-func (t *Tree) New() {
-	t.entries = make(map[string]Entry, 0)
-}
+//	func (t *Tree) New() {
+//		t.entries = make(map[string]Entry, 0)
+//	}
+func NewTree(entries map[string]Entry) *Tree {
+	var treeEntries map[string]Entry
+	if entries == nil {
+		treeEntries = make(map[string]Entry)
+	} else {
+		treeEntries = entries
+	}
 
+	return &Tree{
+		entries: treeEntries,
+	}
+}
+func ParseTree(scanner *scanner.SmartScanner) Object {
+	oidSplitFunc := func(data []byte, atEOF bool) (advance int, token []byte, err error) {
+		if atEOF && len(data) == 0 {
+			return 0, nil, nil
+		}
+		start := 0
+		for start < len(data) && data[start] == ' ' {
+			start++
+		}
+		if start < len(data) && data[start] == '\n' {
+			return start + 1, data[start : start+1], nil
+		}
+		return start + 20, data[start : start+20], nil
+	}
+
+	treeEntries := make(map[string]Entry)
+
+	scanner.SplitByDelim(' ')
+	count := 1
+	for scanner.Scan() {
+		mode, _ := strconv.ParseUint(scanner.Text(), 8, 32)
+
+		scanner.SplitByDelim('\x00')
+		scanner.Scan()
+		entryName := scanner.Text()
+
+
+		scanner.SetSplit(oidSplitFunc)
+		scanner.Scan()
+		entryOid := fmt.Sprintf("%x", scanner.Text())
+		decodedOid, _ := hex.DecodeString(entryOid)
+		indexEntry := index.NewEntry(entryName, decodedOid, uint32(mode))
+
+		treeEntries[entryName] = indexEntry
+		scanner.SplitByDelim(' ')
+		count++
+	}
+	return NewTree(treeEntries)
+
+}
 func (t *Tree) AddEntry(ParentDirectories []string, entry Entry) {
 	if len(ParentDirectories) == 0 {
 		t.entries[entry.GetName()] = entry
 		t.keys = append(t.keys, entry.GetName())
 	} else {
-		childTree := &Tree{}
-		childTree.New()
+		// childTree := &Tree{}
+		// childTree.New()
+		childTree := NewTree(nil)
 		val, ok := t.entries[filepath.Base(ParentDirectories[0])]
 		if ok {
 			childTree = val.(*Tree) // already saved before, use it
@@ -40,12 +96,13 @@ func (t *Tree) AddEntry(ParentDirectories []string, entry Entry) {
 }
 
 func BuildTree(entries []Entry) *Tree {
-	root := Tree{}
-	root.New()
+	// root := Tree{}
+	// root.New()
+	root := NewTree(nil)
 	for _, entry := range entries {
 		root.AddEntry(entry.ParentDirectories(), entry)
 	}
-	return &root
+	return root
 }
 
 func (t *Tree) Traverse(fn func(*Tree)) {
@@ -98,4 +155,7 @@ func (t *Tree) SetTreePathname(pathname string) {
 }
 func (t *Tree) GetPathname() string {
 	return t.pathname
+}
+func (t *Tree) GetEntries() map[string]Entry {
+	return t.entries
 }

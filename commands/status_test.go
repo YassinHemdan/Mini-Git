@@ -803,7 +803,6 @@ func TestStatus_Complex(t *testing.T) {
 				format("??", "dir/new.txt"))
 	})
 
-
 	//TODO LATER
 	// t.Run("DeleteFileAndCreateDirWithSameName", func(t *testing.T) {
 	// 	helper := NewCommandHelper(t)
@@ -876,7 +875,6 @@ func TestStatus_Complex(t *testing.T) {
 		helper.JitCommand("add", ".")
 		helper.Commit(t, "commit")
 
-
 		helper.Delete(t, "file.txt")
 		helper.WriteFile(t, "file.txt", "recreated")
 		assertStatus(t, helper, format(" M", "file.txt"))
@@ -941,7 +939,6 @@ func TestStatus_Complex(t *testing.T) {
 
 	t.Run("RealWorldProjectSimulation", func(t *testing.T) {
 		helper := NewCommandHelper(t)
-
 
 		helper.WriteFile(t, "README.md", "# My Project")
 		helper.WriteFile(t, "go.mod", "module myproject")

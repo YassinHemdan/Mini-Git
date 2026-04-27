@@ -1,13 +1,16 @@
 package internals
 
 import (
+	// "JIT/internals/database"
 	database "JIT/internals/database"
 	"JIT/internals/utils"
+	scanner "JIT/utils"
 	"bytes"
 	"compress/zlib"
 	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -17,15 +20,25 @@ type IDatabase interface {
 	Store(database.Object) error
 }
 
+type ParseFunc func(scanner *scanner.SmartScanner) database.Object
+
+var TYPES = map[string]ParseFunc{
+	"blob":   database.ParseBlob,
+	"commit": database.ParseCommit,
+	"tree":   database.ParseTree,
+}
+
 type Database struct {
-	count int
-	path  string
+	count         int
+	path          string
+	cachedObjects map[string]database.Object
 }
 
 func NewDatabase(pathname string) (*Database, error) {
 	return &Database{
-		count: 0,
-		path:  pathname,
+		count:         0,
+		path:          pathname,
+		cachedObjects: make(map[string]database.Object),
 	}, nil
 }
 
@@ -39,9 +52,6 @@ func (db *Database) Store(object database.Object) error {
 }
 
 func (db *Database) writeObject(oid, data []byte) error {
-	// oid_hex := fmt.Sprintf("%x", oid)
-	// object_dir := strings.Join([]string{db.path, oid_hex[:2]}, string(os.PathSeparator))
-	// object_path := strings.Join([]string{object_dir, oid_hex[2:]}, string(os.PathSeparator))
 	object_path := db.objectPath(oid)
 	object_dir := filepath.Dir(object_path)
 	if _, err := os.Stat(object_path); err == nil {
@@ -63,7 +73,6 @@ func (db *Database) writeObject(oid, data []byte) error {
 
 	zw.Close()
 
-	// temp_file, err := os.CreateTemp(object_dir, db.generateTmpObjectName(oid_hex))
 	temp_file, err := os.CreateTemp(object_dir, db.generateTmpObjectName(oid))
 
 	if err != nil {
@@ -80,13 +89,13 @@ func (db *Database) writeObject(oid, data []byte) error {
 }
 
 func (db *Database) generateTmpObjectName(oid []byte) string {
-
 	return fmt.Sprintf("tmp_obj_%x", oid[0:3])
 }
 
 func (db *Database) GetChanges() int {
 	return db.count
 }
+
 func (db *Database) HashObject(object database.Object) ([]byte, error) {
 	content, err := db.serializeObject(object)
 	if err != nil {
@@ -117,57 +126,48 @@ func (db *Database) objectPath(oid []byte) string {
 	return filepath.Join(db.path, oid_hex[:2], oid_hex[2:])
 }
 
-/*
-	So far we were writing data to our database
-	Now we want to load the data from the database
-	For a commit, we take the tree oid from it and load it from the db
-	then from this tree, we loop on its entries
-		if the current entry is a tree, we recurse on it
-		if the current entry is a blob, we return its oid, mode, ....
+func (db *Database) Load(oid []byte) (database.Object, error) {
+	object, ok := db.cachedObjects[string(oid)]
+	if ok {
+		return object, nil
+	}
 
-	So now we need to implement a function called load and it takes a [] byte oid
-	and returns an object for us
+	object, err := db.readObject(oid)
+	if err != nil {
+		return nil, err
+	}
 
-*/
+	db.cachedObjects[string(oid)] = object
+	return object, nil
+}
 
-// func (db *Database) load(oid []byte) database.Object {
+func (db *Database) readObject(oid []byte) (database.Object, error) {
+	objectPath := db.objectPath(oid)
+	compressedData, err := os.ReadFile(objectPath)
+	if err != nil {
+		return nil, fmt.Errorf("Error: Could not read compressedData - %v", err)
+	}
 
-// }
+	reader, err := zlib.NewReader(bytes.NewReader(compressedData))
+	if err != nil {
+		return nil, fmt.Errorf("Error: Could not create a new reader for compressed data - %v", err)
+	}
 
-// for now, we will make sure that we could get the type and the size of the current object
-func (db *Database) readObject(oid []byte) {
-	// objectPath := db.objectPath(oid)
-	// compressedData, err := os.ReadFile(objectPath)
-	// if err != nil {
-	// 	return "", -1, err
-	// }
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("Error: Could not ReadAll data - %v", err)
+	}
+	scanner := scanner.NewObjectScanner(bytes.NewReader(data))
+	scanner.SplitByDelim(' ')
+	scanner.Scan()
+	objectType := scanner.Text() // type (commit, tree, blob)
 
-	// reader, err := zlib.NewReader(bytes.NewReader(compressedData))
-	// if err != nil {
-	// 	return "", -1, err
-	// }
 
-	// defer reader.Close()
+	scanner.SplitByDelim('\x00')
+	scanner.Scan()
+	scanner.Text() // size
 
-	// data, err := io.ReadAll(reader)
-	// if err != nil {
-	// 	return "", -1, err
-	// }
-
-	// spaceIdx := bytes.IndexByte(data, ' ')
-	// nullIdx := bytes.IndexByte(data, 0)
-
-	// if spaceIdx == -1 || nullIdx == -1 {
-	// 	return "", -1, fmt.Errorf("invalid object format: no space or null terminator found")
-	// }
-
-	// objectType := string(data[:spaceIdx])
-	// sizeStr := string(data[spaceIdx+1 : nullIdx])
-	// objectSize, err := strconv.Atoi(sizeStr)
-
-	// if err != nil {
-	// 	return "", -1, fmt.Errorf("invalid object size: %v", err)
-	// }
-
-	// return objectType, objectSize, nil
+	object := TYPES[objectType](scanner)
+	object.SetOid(oid)
+	return object, nil
 }

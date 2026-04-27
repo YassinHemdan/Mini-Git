@@ -1,6 +1,11 @@
 package internals
 
-import "fmt"
+import (
+	"JIT/utils"
+	"encoding/hex"
+	"fmt"
+	"strings"
+)
 
 type Commit struct {
 	parent_oid []byte
@@ -21,6 +26,43 @@ func (c *Commit) New(parent_oid, tree_oid []byte, message string, author, commit
 	return nil
 }
 
+func ParseCommit(scanner *utils.SmartScanner) Object {
+	headers := make(map[string]string)
+	scanner.SplitByDelim(' ')
+	for scanner.Scan() {
+		headerType := scanner.Text()
+
+		if headerType == "" || headerType == "\n" {
+			break
+		}
+		scanner.SplitByDelim('\n')
+		scanner.Scan()
+		headerContent := scanner.Text()
+
+		headers[headerType] = headerContent
+
+		scanner.SplitByDelim(' ')
+	}
+	scanner.ScanRest()
+	message := scanner.Text()
+
+	scanner.NewReader(strings.NewReader(headers["author"]))
+	author := ParseAuthor(scanner)
+
+	scanner.NewReader(strings.NewReader(headers["committer"]))
+	committer := ParseAuthor(scanner)
+
+	parentOid, _ := hex.DecodeString(headers["parent"])
+	treeOid, _ := hex.DecodeString(headers["tree"])
+	return &Commit{
+		parent_oid: parentOid,
+		tree_oid:   treeOid,
+		author:     *author,
+		committer:  *committer,
+		message:    message,
+	}
+
+}
 func (c *Commit) GetOid() []byte {
 	return c.oid
 }
@@ -34,6 +76,12 @@ func (c *Commit) Type() string {
 }
 func (c *Commit) GetMessage() string {
 	return c.message
+}
+func (c *Commit) GetTreeOid() []byte {
+	return c.tree_oid
+}
+func (c *Commit) GetParentOid() []byte {
+	return c.parent_oid
 }
 func (c *Commit) ToString() string {
 	parent := (func() string {
