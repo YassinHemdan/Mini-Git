@@ -14,8 +14,10 @@ const (
 	ENTRY_BLOCK    = 8
 )
 
-// we need to make this entry implement the Entry interface
-type Entry struct {
+/*
+	Implements the BuildEntry
+*/
+type IndexEntry struct {
 	ctime     uint32
 	ctimeNsec uint32
 	mtime     uint32
@@ -31,10 +33,10 @@ type Entry struct {
 	path      string
 }
 
-func newEntry(pathname string, oid []byte, stat *syscall.Stat_t) (*Entry, error) {
+func newIndexEntry(pathname string, oid []byte, stat *syscall.Stat_t) (*IndexEntry, error) {
 	namelen := uint32(min(0xFFF, len(pathname)))
 	mode := modeForStat(stat)
-	return &Entry{
+	return &IndexEntry{
 		ctime:     uint32(stat.Ctim.Sec),
 		ctimeNsec: uint32(stat.Ctim.Nsec),
 		mtime:     uint32(stat.Mtim.Sec),
@@ -51,15 +53,7 @@ func newEntry(pathname string, oid []byte, stat *syscall.Stat_t) (*Entry, error)
 	}, nil
 }
 
-func NewEntry(pathname string, oid []byte, mode uint32) *Entry {
-	return &Entry{
-		oid:  oid,
-		path: pathname,
-		mode: mode,
-	}
-}
-
-func ParseEntry(data []byte) (*Entry, error) {
+func ParseIndexEntry(data []byte) (*IndexEntry, error) {
 	if len(data) < ENTRY_MIN_SIZE {
 		return nil, fmt.Errorf("entry data too short: %d bytes", len(data))
 	}
@@ -100,7 +94,7 @@ func ParseEntry(data []byte) (*Entry, error) {
 	}
 	path := string(pathBytes[:nullIdx]) // file name directly before the null terminator
 
-	return &Entry{
+	return &IndexEntry{
 		ctime:     ctime,
 		ctimeNsec: ctimeNsec,
 		mtime:     mtime,
@@ -125,7 +119,7 @@ func modeForStat(stat *syscall.Stat_t) uint32 {
 
 	return mode
 }
-func (e *Entry) toBytes() []byte {
+func (e *IndexEntry) toBytes() []byte {
 	buffer := new(bytes.Buffer)
 
 	// the order matters
@@ -150,44 +144,39 @@ func (e *Entry) toBytes() []byte {
 
 	return buffer.Bytes()
 }
-func (e *Entry) key() string {
+func (e *IndexEntry) key() string {
 	return e.path
 }
-func (e *Entry) GetName() string {
+func (e *IndexEntry) GetName() string {
 	return filepath.Base(e.path)
 }
-func (e *Entry) GetMode() string {
+func (e *IndexEntry) GetMode() string {
 	return fmt.Sprintf("%o", e.mode)
 }
-func (e *Entry) GetPathname() string {
+func (e *IndexEntry) GetPathname() string {
 	return e.path
 }
-func (e *Entry) GetOid() []byte {
+func (e *IndexEntry) GetOid() []byte {
 	return e.oid
 }
 
-func (e *Entry) ParentDirectories() []string {
+func (e *IndexEntry) ParentDirectories() []string {
 	return utils.ParentDirectories(e.GetPathname())
 }
-func (e *Entry) Type() string {
-	if e.GetMode() == "40000"{
-		return "tree"
-	}
-	return "blob"
+func (e *IndexEntry) Type() string {
+	return "IndexEntry"
 }
 
-func (e *Entry) IsMatchedStat(stat *syscall.Stat_t) bool {
+func (e *IndexEntry) IsMatchedStat(stat *syscall.Stat_t) bool {
 	return (e.size == 0 || uint32(stat.Size) == e.size) && (e.mode == modeForStat(stat))
 }
-func (e *Entry) IsMatchedTime(stat *syscall.Stat_t) bool {
+func (e *IndexEntry) IsMatchedTime(stat *syscall.Stat_t) bool {
 	return e.ctime == uint32(stat.Ctim.Sec) &&
 		e.ctimeNsec == uint32(stat.Ctim.Nsec) &&
 		e.mtime == uint32(stat.Mtim.Sec) &&
 		e.mtimeNsec == uint32(stat.Mtim.Nsec)
 }
-func (e *Entry) updateState(stat *syscall.Stat_t) {
-	// lets change the name to check if it will really changes
-	// e.path = "WRONG PATH"
+func (e *IndexEntry) updateState(stat *syscall.Stat_t) {
 	e.ctime = uint32(stat.Ctim.Sec)
 	e.ctimeNsec = uint32(stat.Ctim.Nsec)
 	e.mtime = uint32(stat.Mtim.Sec)

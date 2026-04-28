@@ -151,7 +151,7 @@ func (h *statusHelper) detectChanges() {
 	}
 }
 
-func (h *statusHelper) checkIndexEntry(entry *index.Entry) error {
+func (h *statusHelper) checkIndexEntry(entry *index.IndexEntry) error {
 	info, ok := h.states[entry.GetPathname()] // exists in workspace ? check if it is modified
 	if !ok {
 		// in index but not in workspace ? it means that it got deleted

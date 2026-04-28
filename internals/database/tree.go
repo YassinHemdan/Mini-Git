@@ -1,7 +1,6 @@
 package internals
 
 import (
-	index "JIT/internals/index"
 	"JIT/internals/utils"
 	scanner "JIT/utils"
 	"encoding/hex"
@@ -17,9 +16,6 @@ type Tree struct {
 	keys     []string
 }
 
-//	func (t *Tree) New() {
-//		t.entries = make(map[string]Entry, 0)
-//	}
 func NewTree(entries map[string]Entry) *Tree {
 	var treeEntries map[string]Entry
 	if entries == nil {
@@ -58,27 +54,29 @@ func ParseTree(scanner *scanner.SmartScanner) Object {
 		scanner.Scan()
 		entryName := scanner.Text()
 
-
 		scanner.SetSplit(oidSplitFunc)
 		scanner.Scan()
 		entryOid := fmt.Sprintf("%x", scanner.Text())
 		decodedOid, _ := hex.DecodeString(entryOid)
-		indexEntry := index.NewEntry(entryName, decodedOid, uint32(mode))
 
-		treeEntries[entryName] = indexEntry
+		// a tree entry might be a tree or a blob
+		// we don't care, we only care about the name, mode and oid
+		// that's why we introduce the TreeEntry struct 
+		treeEntry := NewTreeEntry(entryName, decodedOid, uint32(mode))
+
+		treeEntries[entryName] = treeEntry
 		scanner.SplitByDelim(' ')
 		count++
 	}
 	return NewTree(treeEntries)
 
 }
+
 func (t *Tree) AddEntry(ParentDirectories []string, entry Entry) {
 	if len(ParentDirectories) == 0 {
 		t.entries[entry.GetName()] = entry
 		t.keys = append(t.keys, entry.GetName())
 	} else {
-		// childTree := &Tree{}
-		// childTree.New()
 		childTree := NewTree(nil)
 		val, ok := t.entries[filepath.Base(ParentDirectories[0])]
 		if ok {
@@ -95,9 +93,7 @@ func (t *Tree) AddEntry(ParentDirectories []string, entry Entry) {
 	}
 }
 
-func BuildTree(entries []Entry) *Tree {
-	// root := Tree{}
-	// root.New()
+func BuildTree(entries []BuildEntry) *Tree {
 	root := NewTree(nil)
 	for _, entry := range entries {
 		root.AddEntry(entry.ParentDirectories(), entry)
@@ -105,6 +101,12 @@ func BuildTree(entries []Entry) *Tree {
 	return root
 }
 
+
+/*
+	Notice here that we are only saving the trees only
+	We are not checkinf for the blobs as they are already saved during the staging phase
+	We are only care about the OIDs of a tree's entries to serilaize it and save it in the DB
+*/
 func (t *Tree) Traverse(fn func(*Tree)) {
 	for _, k := range t.keys {
 		entry := t.entries[k]

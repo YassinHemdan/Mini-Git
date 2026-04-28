@@ -21,7 +21,7 @@ const (
 
 type Index struct {
 	keys      map[string]bool
-	entries   map[string]*Entry
+	entries   map[string]*IndexEntry
 	parents   map[string]map[string]bool
 	lockfile  *locks.LockFile
 	pathname  string
@@ -35,7 +35,7 @@ func NewIndex(pathname string) (*Index, error) {
 	}
 
 	return &Index{
-		entries:   make(map[string]*Entry),
+		entries:   make(map[string]*IndexEntry),
 		keys:      make(map[string]bool),
 		parents:   make(map[string]map[string]bool),
 		lockfile:  &lf,
@@ -48,7 +48,7 @@ func (idx *Index) Add(pathname string, oid []byte, stat *syscall.Stat_t) error {
 	if len(pathname) == 0 {
 		return fmt.Errorf("Can't add an entry with no name")
 	}
-	entry, err := newEntry(pathname, oid, stat)
+	entry, err := newIndexEntry(pathname, oid, stat)
 	if err != nil {
 		return fmt.Errorf("Can't create index entry - %v", err)
 	}
@@ -61,8 +61,8 @@ func (idx *Index) Add(pathname string, oid []byte, stat *syscall.Stat_t) error {
 	return nil
 }
 
-func (idx *Index) GetEntries() []*Entry {
-	entries := make([]*Entry, 0)
+func (idx *Index) GetEntries() []*IndexEntry {
+	entries := make([]*IndexEntry, 0)
 	sortedKeys := idx.getKeysSlice()
 	for _, key := range sortedKeys {
 		entry := idx.entries[key]
@@ -204,7 +204,7 @@ func (idx *Index) readEntries(reader *checksum, count uint32) error {
 		// mutiple of 8
 
 		// now we will parse it using our entry struct and it will return for us *entry
-		entry, err := ParseEntry(data)
+		entry, err := ParseIndexEntry(data)
 
 		if err != nil {
 			return fmt.Errorf("Error: Could not parse entry - %v", err)
@@ -219,7 +219,7 @@ func (idx *Index) readEntries(reader *checksum, count uint32) error {
 	return nil
 }
 
-func (idx *Index) storeEntry(entry *Entry) error {
+func (idx *Index) storeEntry(entry *IndexEntry) error {
 	idx.resolveConflicts(entry)
 	val, exists := idx.entries[entry.key()]
 	if !exists {
@@ -241,12 +241,12 @@ func (idx *Index) storeEntry(entry *Entry) error {
 	return nil
 }
 
-func (idx *Index) resolveConflicts(entry *Entry) { // logl + n*l
+func (idx *Index) resolveConflicts(entry *IndexEntry) { // logl + n*l
 	idx.replacingFileWithDirectoryCheck(entry)
 	idx.replacingDirectoryWithFile(entry)
 }
 
-func (idx *Index) replacingFileWithDirectoryCheck(entry *Entry) { // O(L + LlogL), where n is the length file's ParentDirectories
+func (idx *Index) replacingFileWithDirectoryCheck(entry *IndexEntry) { // O(L + LlogL), where n is the length file's ParentDirectories
 	/*
 		--> we will take the path and we will check if any of the parents of the new path
 		is located in our keys or not, if so, it means there was a file with the same name of a
@@ -293,7 +293,7 @@ func (idx *Index) replacingFileWithDirectoryCheck(entry *Entry) { // O(L + LlogL
 
 }
 
-func (idx *Index) replacingDirectoryWithFile(entry *Entry) {
+func (idx *Index) replacingDirectoryWithFile(entry *IndexEntry) {
 	/*
 		O(L * N):
 			where N is the length if the innerMap (#files under the current directory)
@@ -333,7 +333,7 @@ func (idx *Index) removeEntry(pathname string) { // O(L) where n is the length o
 }
 
 func (idx *Index) Clear() {
-	idx.entries = make(map[string]*Entry)
+	idx.entries = make(map[string]*IndexEntry)
 	idx.parents = make(map[string]map[string]bool)
 	idx.keys = make(map[string]bool, 0)
 	idx.isChanged = false
@@ -364,7 +364,7 @@ func (idx *Index) IsTracked(pathname string) bool {
 	return ok1 || ok2
 }
 
-func (idx *Index) UpdateEntryStat(entry *Entry, stat *syscall.Stat_t) {
+func (idx *Index) UpdateEntryStat(entry *IndexEntry, stat *syscall.Stat_t) {
 	entry.updateState(stat)
 	idx.isChanged = true
 }

@@ -111,8 +111,8 @@ func validate(args []string) error {
 	return nil
 }
 
-func toTreeEntry(entries []*index.Entry) []database.Entry {
-	treeEntries := make([]database.Entry, 0)
+func toTreeEntry(entries []*index.IndexEntry) []database.BuildEntry {
+	treeEntries := make([]database.BuildEntry, 0)
 
 	for _, entry := range entries {
 		treeEntries = append(treeEntries, entry)
