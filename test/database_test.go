@@ -190,7 +190,7 @@ func TestDatabase_LoadTreeObject(t *testing.T) {
 				if entry.Type() == "tree" {
 					subTreeEntries := loadTree(t, repo, entry.GetOid())
 					traverse(subTreeEntries)
-				} else {
+				} else if entry.Type() == "blob" {
 					objectBlob, err := repo.Database().Load(entry.GetOid())
 					if err != nil {
 						t.Fatalf("Could not load blob - %v\n", err)

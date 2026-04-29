@@ -143,6 +143,7 @@ func (db *Database) Load(oid []byte) (database.Object, error) {
 
 func (db *Database) readObject(oid []byte) (database.Object, error) {
 	objectPath := db.objectPath(oid)
+	// fmt.Println(objectPath)
 	compressedData, err := os.ReadFile(objectPath)
 	if err != nil {
 		return nil, fmt.Errorf("Error: Could not read compressedData - %v", err)
@@ -158,12 +159,11 @@ func (db *Database) readObject(oid []byte) (database.Object, error) {
 		return nil, fmt.Errorf("Error: Could not ReadAll data - %v", err)
 	}
 	scanner := scanner.NewObjectScanner(bytes.NewReader(data))
-	scanner.SplitByDelim(' ')
+	scanner.SplitByDelim(' ', true)
 	scanner.Scan()
 	objectType := scanner.Text() // type (commit, tree, blob)
 
-
-	scanner.SplitByDelim('\x00')
+	scanner.SplitByDelim('\x00', true)
 	scanner.Scan()
 	scanner.Text() // size
 

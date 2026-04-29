@@ -34,9 +34,6 @@ func ParseTree(scanner *scanner.SmartScanner) Object {
 			return 0, nil, nil
 		}
 		start := 0
-		for start < len(data) && data[start] == ' ' {
-			start++
-		}
 		if start < len(data) && data[start] == '\n' {
 			return start + 1, data[start : start+1], nil
 		}
@@ -45,12 +42,12 @@ func ParseTree(scanner *scanner.SmartScanner) Object {
 
 	treeEntries := make(map[string]Entry)
 
-	scanner.SplitByDelim(' ')
-	count := 1
+	scanner.SplitByDelim(' ', true)
 	for scanner.Scan() {
-		mode, _ := strconv.ParseUint(scanner.Text(), 8, 32)
+		readedMode := scanner.Text()
+		mode, _ := strconv.ParseUint(readedMode, 8, 32)
 
-		scanner.SplitByDelim('\x00')
+		scanner.SplitByDelim('\x00', true)
 		scanner.Scan()
 		entryName := scanner.Text()
 
@@ -59,14 +56,10 @@ func ParseTree(scanner *scanner.SmartScanner) Object {
 		entryOid := fmt.Sprintf("%x", scanner.Text())
 		decodedOid, _ := hex.DecodeString(entryOid)
 
-		// a tree entry might be a tree or a blob
-		// we don't care, we only care about the name, mode and oid
-		// that's why we introduce the TreeEntry struct 
 		treeEntry := NewTreeEntry(entryName, decodedOid, uint32(mode))
 
 		treeEntries[entryName] = treeEntry
-		scanner.SplitByDelim(' ')
-		count++
+		scanner.SplitByDelim(' ', true)
 	}
 	return NewTree(treeEntries)
 
@@ -101,11 +94,10 @@ func BuildTree(entries []BuildEntry) *Tree {
 	return root
 }
 
-
 /*
-	Notice here that we are only saving the trees only
-	We are not checkinf for the blobs as they are already saved during the staging phase
-	We are only care about the OIDs of a tree's entries to serilaize it and save it in the DB
+Notice here that we are only saving the trees only
+We are not checkinf for the blobs as they are already saved during the staging phase
+We are only care about the OIDs of a tree's entries to serilaize it and save it in the DB
 */
 func (t *Tree) Traverse(fn func(*Tree)) {
 	for _, k := range t.keys {

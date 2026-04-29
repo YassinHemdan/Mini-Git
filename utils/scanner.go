@@ -49,16 +49,17 @@ func (ss *SmartScanner) Text() string {
 	return ss.scanner.Text()
 }
 
-func (ss *SmartScanner) SplitByDelim(delim byte) {
+func (ss *SmartScanner) SplitByDelim(delim byte, trim bool) {
 	ss.SetSplit(func(data []byte, atEOF bool) (advance int, token []byte, err error) {
 		if atEOF && len(data) == 0 {
 			return 0, nil, nil
 		}
 
 		start := 0
-
-		for start < len(data) && data[start] == ' ' {
-			start++
+		if trim {
+			for start < len(data) && data[start] == ' ' {
+				start++
+			}
 		}
 		if start < len(data) && data[start] == '\n' {
 			return start + 1, data[start : start+1], nil

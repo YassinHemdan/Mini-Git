@@ -28,20 +28,20 @@ func (c *Commit) New(parent_oid, tree_oid []byte, message string, author, commit
 
 func ParseCommit(scanner *utils.SmartScanner) Object {
 	headers := make(map[string]string)
-	scanner.SplitByDelim(' ')
+	scanner.SplitByDelim(' ', true)
 	for scanner.Scan() {
 		headerType := scanner.Text()
 
 		if headerType == "" || headerType == "\n" {
 			break
 		}
-		scanner.SplitByDelim('\n')
+		scanner.SplitByDelim('\n', true)
 		scanner.Scan()
 		headerContent := scanner.Text()
 
 		headers[headerType] = headerContent
 
-		scanner.SplitByDelim(' ')
+		scanner.SplitByDelim(' ', true)
 	}
 	scanner.ScanRest()
 	message := scanner.Text()
