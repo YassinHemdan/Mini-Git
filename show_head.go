@@ -38,11 +38,6 @@ func ShowHead() {
 		for _, entry := range entries {
 			fullpathname := filepath.Join(pathname, entry.GetName())
 			if entry.Type() == "tree" {
-				if entry.GetName() == "index" {
-					// fmt.Printf("oiddd = %x\n", entry.GetOid())
-				}
-				// fmt.Println("Current tree name =", entry.GetName())
-				// fmt.Printf("Current tree oid = %x\n", entry.GetOid())
 				showTree(loadTree(entry.GetOid(), repo), fullpathname)
 			} else if entry.Type() == "blob" {
 				fmt.Printf("%s %x %s\n", entry.GetMode(), entry.GetOid(), fullpathname)

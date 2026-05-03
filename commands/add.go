@@ -49,6 +49,8 @@ func (h *addCommandHandler) run() {
 	fmt.Println(verified)
 
 	filesToAdd, err := h.expandedPaths()
+
+
 	if err != nil {
 		h.handleError(err)
 		return

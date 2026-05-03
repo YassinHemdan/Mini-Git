@@ -157,14 +157,14 @@ func (h *CommandHelper) AssertStatus(t *testing.T, status int) {
 func (h *CommandHelper) AssertStdout(t *testing.T, message string) {
 	t.Helper()
 	if message != h.Stdout.String() {
-		t.Errorf("Error: expected message '%s' but found '%s'", message, h.Stdout.String())
+		t.Errorf("Error: expected message '%s'\nbut found '%s'\n", message, h.Stdout.String())
 	}
 }
 
 func (h *CommandHelper) AssertStderr(t *testing.T, message string) {
 	t.Helper()
 	if message != h.Stderr.String() {
-		t.Errorf("Error: expected message '%s' but found '%s'", message, h.Stdout.String())
+		t.Errorf("Error: expected message '%s'\nbut found '%s'\n", message, h.Stdout.String())
 	}
 }
 

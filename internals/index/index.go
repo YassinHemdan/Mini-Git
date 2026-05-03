@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"slices"
 	"syscall"
@@ -221,7 +222,8 @@ func (idx *Index) readEntries(reader *checksum, count uint32) error {
 
 func (idx *Index) storeEntry(entry *IndexEntry) error {
 	idx.resolveConflicts(entry)
-	val, exists := idx.entries[entry.key()]
+	// val, exists := idx.entries[entry.key()]
+	_, exists := idx.entries[entry.key()]
 	if !exists {
 		// first time to save it
 		idx.entries[entry.key()] = entry
@@ -233,11 +235,12 @@ func (idx *Index) storeEntry(entry *IndexEntry) error {
 			}
 			idx.parents[parentname][entry.key()] = true
 		}
-	} else if string(val.GetOid()) != string(entry.GetOid()) {
-		// modified
-		idx.entries[entry.key()] = entry
 	}
-
+	// else if string(val.GetOid()) != string(entry.GetOid()) || val.GetMode() != entry.GetMode() {
+	// 	// modified
+	// 	idx.entries[entry.key()] = entry
+	// }
+	idx.entries[entry.key()] = entry
 	return nil
 }
 
@@ -340,11 +343,12 @@ func (idx *Index) Clear() {
 }
 
 func (idx *Index) getKeysSlice() []string {
-	result := make([]string, 0)
-	for k := range idx.keys {
-		result = append(result, k)
-	}
+	// result := make([]string, 0)
+	// for k := range idx.keys {
+	// 	result = append(result, k)
+	// }
 
+	result := slices.Collect(maps.Keys(idx.keys))
 	slices.Sort(result)
 
 	return result
@@ -359,11 +363,13 @@ func (idx *Index) ReleaseLock() error {
 }
 
 func (idx *Index) IsTracked(pathname string) bool {
-	_, ok1 := idx.keys[pathname]
-	_, ok2 := idx.parents[pathname] // a directory is tracked, no need to check for its childs
-	return ok1 || ok2
+	_, ok := idx.parents[pathname] // if a directory is tracked, no need to check for its childs
+	return idx.IsTrackedFile(pathname) || ok
 }
-
+func (idx *Index) IsTrackedFile(pathname string) bool {
+	_, ok := idx.keys[pathname]
+	return ok
+}
 func (idx *Index) UpdateEntryStat(entry *IndexEntry, stat *syscall.Stat_t) {
 	entry.updateState(stat)
 	idx.isChanged = true

@@ -110,6 +110,7 @@ func TestAdd_FailsForUnreadableFiles(t *testing.T) {
 	helper.AssertStderr(t, "error: open('secret.txt'): Permission denied\nfatal: adding files failed\n")
 	assertIndex(t, helper, [][]any{})
 }
+
 func assertIndex(t *testing.T, helper *CommandHelper, expected [][]any) {
 	t.Helper()
 	repo := helper.Repo(t)
@@ -118,6 +119,7 @@ func assertIndex(t *testing.T, helper *CommandHelper, expected [][]any) {
 	}
 
 	entries := repo.Index().GetEntries()
+
 	if len(entries) != len(expected) {
 		t.Fatalf("expected %d entries, got %d", len(expected), len(entries))
 	}

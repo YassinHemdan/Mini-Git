@@ -978,6 +978,117 @@ func TestStatus_Complex(t *testing.T) {
 	})
 }
 
+func TestStatus_HeadIndexChanges(t *testing.T) {
+	t.Run("Head/Index changes_AddOnly", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.WriteFile(t, "1.txt", "one")
+		helper.WriteFile(t, "a/2.txt", "two")
+		helper.WriteFile(t, "a/b/3.txt", "three")
+		helper.JitCommand("add", ".")
+		helper.Commit(t, "first commit")
+
+		helper.WriteFile(t, "a/4.txt", "four")
+		assertStatus(t, helper, format("??", "a/4.txt"))
+
+		helper.JitCommand("add", ".")
+		assertStatus(t, helper, format("A ", "a/4.txt"))
+
+		helper.WriteFile(t, "d/e/5.txt", "five")
+		assertStatus(t, helper, format("A ", "a/4.txt")+format("??", "d/"))
+
+		helper.JitCommand("add", ".")
+		assertStatus(t, helper, format("A ", "a/4.txt")+format("A ", "d/e/5.txt"))
+	})
+	t.Run("Head/Index changes_AddAndModify", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.WriteFile(t, "1.txt", "one")
+		helper.WriteFile(t, "a/2.txt", "two")
+		helper.WriteFile(t, "a/b/3.txt", "three")
+		helper.JitCommand("add", ".")
+		helper.Commit(t, "first commit")
+
+		helper.WriteFile(t, "a/4.txt", "four")
+		assertStatus(t, helper, format("??", "a/4.txt"))
+
+		helper.JitCommand("add", ".")
+		assertStatus(t, helper, format("A ", "a/4.txt"))
+
+		helper.WriteFile(t, "a/4.txt", "a change")
+		assertStatus(t, helper, format("AM", "a/4.txt"))
+
+		helper.JitCommand("add", ".")
+		assertStatus(t, helper, format("A ", "a/4.txt"))
+	})
+	t.Run("Head/Index changes_ModifyIndexMode", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.WriteFile(t, "1.txt", "one")
+		helper.WriteFile(t, "a/2.txt", "two")
+		helper.WriteFile(t, "a/b/3.txt", "three")
+		helper.JitCommand("add", ".")
+		helper.Commit(t, "first commit")
+
+		helper.MakeExecutable(t, "1.txt")
+		helper.JitCommand("add", ".")
+		assertStatus(t, helper, "M  1.txt\n")
+	})
+
+	t.Run("Head/Index changes_ModifyIndexContent", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.WriteFile(t, "1.txt", "one")
+		helper.WriteFile(t, "a/2.txt", "two")
+		helper.WriteFile(t, "a/b/3.txt", "three")
+		helper.JitCommand("add", ".")
+		helper.Commit(t, "first commit")
+
+		helper.WriteFile(t, "a/b/3.txt", "modify")
+		helper.JitCommand("add", ".")
+		assertStatus(t, helper, "M  a/b/3.txt\n")
+	})
+	t.Run("Head/Index changes_ModifyIndexAndWorkspace", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.WriteFile(t, "1.txt", "one")
+		helper.JitCommand("add", ".")
+		helper.Commit(t, "first commit")
+		assertStatus(t, helper, "")
+
+		// 1- modify the content and added it
+		helper.WriteFile(t, "1.txt", "modification1")
+		helper.JitCommand("add", ".")
+		assertStatus(t, helper, "M  1.txt\n")
+
+		// 2- modify it again
+		helper.WriteFile(t, "1.txt", "modification2")
+		assertStatus(t, helper, "MM 1.txt\n")
+	})
+	t.Run("Head/Index changes_DeleteFiles", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.WriteFile(t, "1.txt", "one")
+		helper.WriteFile(t, "a/2.txt", "two")
+		helper.WriteFile(t, "a/b/3.txt", "three")
+		helper.JitCommand("add", ".")
+		helper.Commit(t, "first commit")
+
+		helper.Delete(t, "1.txt")
+		helper.Delete(t, ".jit/index")
+		helper.JitCommand("add", ".")
+
+		assertStatus(t, helper, "D  1.txt\n")
+	})
+	t.Run("Head/Index changes_DeleteDirectory", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.WriteFile(t, "1.txt", "one")
+		helper.WriteFile(t, "a/2.txt", "two")
+		helper.WriteFile(t, "a/b/3.txt", "three")
+		helper.JitCommand("add", ".")
+		helper.Commit(t, "first commit")
+
+		helper.Delete(t, "a")
+		helper.Delete(t, ".jit/index")
+		helper.JitCommand("add", ".")
+
+		assertStatus(t, helper, format("D ", "a/2.txt")+format("D ", "a/b/3.txt"))
+	})
+}
 func assertStatus(t *testing.T, helper *CommandHelper, statusOutput string) {
 	t.Helper()
 	helper.JitCommand("status")
