@@ -13,29 +13,29 @@ import (
 )
 
 const (
-	WORKSPACE_MODIFIED = "workspace_modified"
-	WORKSPACE_DELETED  = "workspace_deleted"
-	INDEX_ADDED        = "index_added"
-	INDEX_MODIFIED     = "index_modified"
-	INDEX_DELETED      = "index_deleted"
+	DELETED  = "D"
+	MODIFIED = "M"
+	ADDED    = "A"
 )
 
 type statusHelper struct {
-	ctx       *CommandContext
-	repo      *internals.Repository
-	untracked []string
-	changed   []string // printing order
-	changes   map[string]map[string]bool
-	states    map[string]os.FileInfo
-	headTree  map[string]database.Entry
+	ctx               *CommandContext
+	repo              *internals.Repository
+	untracked         []string
+	changed           []string // printing order
+	workspace_changes map[string]string
+	index_changes     map[string]string
+	states            map[string]os.FileInfo
+	headTree          map[string]database.Entry
 }
 
 func StatusCommand(ctx *CommandContext) {
 	helper := &statusHelper{
-		ctx:      ctx,
-		states:   make(map[string]os.FileInfo),
-		changes:  make(map[string]map[string]bool),
-		headTree: make(map[string]database.Entry),
+		ctx:               ctx,
+		states:            make(map[string]os.FileInfo),
+		index_changes:     make(map[string]string),
+		workspace_changes: make(map[string]string),
+		headTree:          make(map[string]database.Entry),
 	}
 	helper.run()
 }
@@ -192,14 +192,14 @@ func (h *statusHelper) checkIndexAgainstWorkspace(entry *index.IndexEntry) error
 	info, ok := h.states[entry.GetPathname()] // exists in workspace ? check if it is modified
 	if !ok {
 		// in index but not in workspace ? it means that it got deleted
-		h.recordChange(entry.GetPathname(), WORKSPACE_DELETED)
+		h.recordChange(entry.GetPathname(), h.workspace_changes, DELETED)
 		return nil
 	}
 
 	// check the stat
 	stat := info.Sys().(*syscall.Stat_t)
 	if !entry.IsMatchedStat(stat) {
-		h.recordChange(entry.GetPathname(), WORKSPACE_MODIFIED)
+		h.recordChange(entry.GetPathname(), h.workspace_changes, MODIFIED)
 		return nil
 	}
 	if !entry.IsMatchedTime(stat) {
@@ -219,7 +219,7 @@ func (h *statusHelper) checkIndexAgainstWorkspace(entry *index.IndexEntry) error
 			return err
 		}
 		if string(oid) != string(entry.GetOid()) {
-			h.recordChange(entry.GetPathname(), WORKSPACE_MODIFIED)
+			h.recordChange(entry.GetPathname(), h.workspace_changes, MODIFIED)
 		} else {
 			// content not changed but timestamps got changed.
 			// Update them so that we don't need to visit them again
@@ -233,11 +233,11 @@ func (h *statusHelper) checkIndexAgainstHeadTree(indexEntry *index.IndexEntry) e
 	val, ok := h.headTree[indexEntry.GetPathname()]
 	if !ok {
 		// not committed before
-		h.recordChange(indexEntry.GetPathname(), INDEX_ADDED)
+		h.recordChange(indexEntry.GetPathname(), h.index_changes, ADDED)
 	} else {
 		// committed before, lets check if its content or mode got changed
 		if val.GetMode() != indexEntry.GetMode() || string(val.GetOid()) != string(indexEntry.GetOid()) {
-			h.recordChange(indexEntry.GetPathname(), INDEX_MODIFIED)
+			h.recordChange(indexEntry.GetPathname(), h.index_changes, MODIFIED)
 		}
 	}
 	return nil
@@ -245,17 +245,13 @@ func (h *statusHelper) checkIndexAgainstHeadTree(indexEntry *index.IndexEntry) e
 func (h *statusHelper) collectDeletedHeadFiles() {
 	for pathname := range h.headTree {
 		if !h.repo.Index().IsTrackedFile(pathname) {
-			h.recordChange(pathname, INDEX_DELETED)
+			h.recordChange(pathname, h.index_changes, DELETED)
 		}
 	}
 }
-func (h *statusHelper) recordChange(pathname, changeType string) {
-	if _, ok := h.changes[pathname]; !ok {
-		h.changes[pathname] = make(map[string]bool)
-	}
-
+func (h *statusHelper) recordChange(pathname string, changesMap map[string]string, changeType string) {
 	h.changed = append(h.changed, pathname)
-	h.changes[pathname][changeType] = true
+	changesMap[pathname] = changeType
 }
 
 func (h *statusHelper) loadHeadTree() error {
@@ -317,25 +313,13 @@ func (h *statusHelper) loadHeadTree() error {
 }
 
 func (h *statusHelper) getFileStatus(pathname string) string {
-	pathChanges := h.changes[pathname]
-
-	left := " "
-	if pathChanges[INDEX_ADDED] {
-		left = "A"
+	left, ok := h.index_changes[pathname]
+	if !ok {
+		left = " "
 	}
-	if pathChanges[INDEX_MODIFIED] {
-		left = "M"
-	}
-	if pathChanges[INDEX_DELETED] {
-		left = "D"
-	}
-
-	right := " "
-	if pathChanges[WORKSPACE_DELETED] {
-		right = "D"
-	}
-	if pathChanges[WORKSPACE_MODIFIED] {
-		right = "M"
+	right, ok := h.workspace_changes[pathname]
+	if !ok {
+		right = " "
 	}
 
 	return left + right
