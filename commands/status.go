@@ -5,18 +5,26 @@ import (
 	"JIT/internals"
 	database "JIT/internals/database"
 	"JIT/internals/index"
+	colorUtil "JIT/utils"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"syscall"
 )
 
 const (
-	DELETED  = "D"
-	MODIFIED = "M"
-	ADDED    = "A"
+	DELETED  = "deleted"
+	MODIFIED = "modified"
+	ADDED    = "new file"
+	GREEN    = "green"
+	RED      = "red"
 )
+
+var shortStatusMap map[string]string
+var longStatusMap map[string]string
 
 type statusHelper struct {
 	ctx               *CommandContext
@@ -27,6 +35,7 @@ type statusHelper struct {
 	index_changes     map[string]string
 	states            map[string]os.FileInfo
 	headTree          map[string]database.Entry
+	statusSize        int
 }
 
 func StatusCommand(ctx *CommandContext) {
@@ -37,6 +46,15 @@ func StatusCommand(ctx *CommandContext) {
 		workspace_changes: make(map[string]string),
 		headTree:          make(map[string]database.Entry),
 	}
+	shortStatusMap = make(map[string]string)
+	shortStatusMap[DELETED] = "D"
+	shortStatusMap[MODIFIED] = "M"
+	shortStatusMap[ADDED] = "A"
+
+	longStatusMap = make(map[string]string)
+	longStatusMap[DELETED] = "deleted"
+	longStatusMap[MODIFIED] = "modified"
+	longStatusMap[ADDED] = "new file"
 	helper.run()
 }
 
@@ -85,6 +103,14 @@ func (h *statusHelper) run() {
 }
 
 func (h *statusHelper) printStatus() {
+	if len(h.ctx.Args) == 0 || h.ctx.Args[0] != "--porcelain" {
+		h.printLongFormat()
+	} else {
+		h.printPorcelainFormat()
+	}
+}
+
+func (h *statusHelper) printPorcelainFormat() {
 	slices.Sort(h.changed)
 
 	// we might have a file that got added and modified at the same time
@@ -102,7 +128,16 @@ func (h *statusHelper) printStatus() {
 		fmt.Fprintf(h.ctx.Stdout, "?? %s\n", pathname)
 	}
 }
-
+func (h *statusHelper) printLongFormat() {
+	message := "On branch master"
+	message +=
+		h.indexChangesMessage() +
+			h.workspaceChangesMessage() +
+			h.untrackedMessage() +
+			h.commitMessage() +
+			"\n"
+	fmt.Fprintf(h.ctx.Stdout, "%s", message)
+}
 func (h *statusHelper) scan(dirName string) error {
 	dirEntriesMap, err := h.repo.Workspace().ListDir(dirName)
 	if err != nil {
@@ -252,6 +287,7 @@ func (h *statusHelper) collectDeletedHeadFiles() {
 func (h *statusHelper) recordChange(pathname string, changesMap map[string]string, changeType string) {
 	h.changed = append(h.changed, pathname)
 	changesMap[pathname] = changeType
+	h.statusSize = max(h.statusSize, len(changeType))
 }
 
 func (h *statusHelper) loadHeadTree() error {
@@ -313,13 +349,14 @@ func (h *statusHelper) loadHeadTree() error {
 }
 
 func (h *statusHelper) getFileStatus(pathname string) string {
-	left, ok := h.index_changes[pathname]
-	if !ok {
-		left = " "
+	left, right := " ", " "
+	val, ok := h.index_changes[pathname]
+	if ok {
+		left = shortStatusMap[val]
 	}
-	right, ok := h.workspace_changes[pathname]
-	if !ok {
-		right = " "
+	val, ok = h.workspace_changes[pathname]
+	if ok {
+		right = shortStatusMap[val]
 	}
 
 	return left + right
@@ -332,4 +369,70 @@ func (h *statusHelper) createBlob(pathname string) (*database.Blob, error) {
 	}
 	blob := database.NewBlob(data)
 	return blob, nil
+}
+
+func (h *statusHelper) indexChangesMessage() string {
+	if len(h.index_changes) == 0 {
+		return ""
+	}
+	message := "\nChanges to be committed:\n"
+	message += "  (use \"git restore --staged <file>...\" to unstage)\n"
+	message += h.changedFilesMessage(h.index_changes, GREEN)
+
+	return message
+
+}
+func (h *statusHelper) workspaceChangesMessage() string {
+	if len(h.workspace_changes) == 0 {
+		return ""
+	}
+	message := "\nChanges not staged for commit:\n"
+	message += "  (use \"git add/rm <file>...\" to update what will be committed)\n"
+	message += "  (use \"git restore <file>...\" to discard changes in working directory)\n"
+	message += h.changedFilesMessage(h.workspace_changes, RED)
+
+	return message
+}
+func (h *statusHelper) untrackedMessage() string {
+	if len(h.untracked) == 0 {
+		return ""
+	}
+	message := "\nUntracked files:\n"
+	message += "  (use \"git add <file>...\" to include in what will be committed)\n"
+
+	slices.Sort(h.untracked)
+	for _, path := range h.untracked {
+		message += fmt.Sprintf("%8s%s\n", "", path)
+	}
+
+	return message
+}
+func (h *statusHelper) changedFilesMessage(changesSet map[string]string, color string) string {
+	message := ""
+	indexPaths := slices.Collect(maps.Keys(changesSet))
+	slices.Sort(indexPaths)
+
+	for _, path := range indexPaths {
+		extraSpaces := h.statusSize - len(changesSet[path])
+		prefixSpacesOne := strings.Repeat(" ", 8)
+		prefixSpacesTwo := strings.Repeat(" ", extraSpaces+3)
+		statusMessage := longStatusMap[changesSet[path]]
+		message += fmt.Sprintf("%s%s:%s%s\n", prefixSpacesOne, statusMessage, prefixSpacesTwo, path)
+	}
+	return colorUtil.Format(color, message)
+	// return message
+}
+func (h *statusHelper) commitMessage() string {
+	message := ""
+	if len(h.index_changes) != 0 {
+		return message
+	} else if len(h.workspace_changes) != 0 {
+		message += "\nno changes added to commit (use \"git add\" and/or \"git commit -a\")"
+	} else if len(h.untracked) != 0 {
+		message += "\nnothing added to commit but untracked files present (use \"git add\" to track)"
+	} else {
+		message += "\nnothing to commit, working tree clean"
+	}
+
+	return message
 }

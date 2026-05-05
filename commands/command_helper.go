@@ -3,7 +3,6 @@ package commands
 import (
 	"JIT/internals"
 	"bytes"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -130,9 +129,9 @@ func (h *CommandHelper) JitCommand(argv ...string) *CommandContext {
 	h.Stdout = &bytes.Buffer{}
 	h.Stderr = &bytes.Buffer{}
 
-	fmt.Println(argv)
+	// fmt.Println(argv)
 	h.Cmd = Execute(h.repoPath, h.Env, argv, h.Stdin, h.Stdout, h.Stderr)
-
+	time.Sleep(5 * time.Millisecond) // flaky tests. Should we handle them in a different way ??
 	return h.Cmd
 }
 
@@ -140,7 +139,6 @@ func (h *CommandHelper) Commit(t *testing.T, message string) {
 	h.setEnv("JIT_AUTHOR_NAME", "A. U. Thor")
 	h.setEnv("JIT_AUTHOR_EMAIL", "author@example.com")
 	h.JitCommand("commit", "-m", message)
-	time.Sleep(5 * time.Millisecond) // flaky tests. Should we handle them in a different way ??
 }
 
 func (h *CommandHelper) setEnv(key, value string) {

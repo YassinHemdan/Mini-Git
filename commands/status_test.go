@@ -1091,7 +1091,7 @@ func TestStatus_HeadIndexChanges(t *testing.T) {
 }
 func assertStatus(t *testing.T, helper *CommandHelper, statusOutput string) {
 	t.Helper()
-	helper.JitCommand("status")
+	helper.JitCommand("status", "--porcelain")
 	helper.AssertStdout(t, statusOutput)
 }
 
