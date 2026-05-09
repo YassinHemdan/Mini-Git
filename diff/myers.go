@@ -17,39 +17,37 @@ const (
 
 type Edit struct {
 	Type  byte
-	Value byte
+	Value string
 }
 type Myers struct {
-	a      string
-	b      string
-	script []Edit
+	a     []string
+	b     []string
+	edits []Edit
 }
 
 func NewMyersDiff(a, b string) *Myers {
 	return &Myers{
-		a:      a,
-		b:      b,
-		script: make([]Edit, 0),
+		a:     lines(a),
+		b:     lines(b),
+		edits: make([]Edit, 0),
 	}
 }
 func (ms *Myers) Diff() {
 	trace := ms.shortestEdit()
 	ms.backtrack(trace, func(prev_x, prev_y, x, y int) {
 		if prev_x == x {
-			ms.script = append(ms.script, Edit{INS, ms.b[y-1]})
+			ms.edits = append(ms.edits, Edit{INS, ms.b[y-1]})
 		} else if prev_y == y {
-			ms.script = append(ms.script, Edit{DEL, ms.a[x-1]})
+			ms.edits = append(ms.edits, Edit{DEL, ms.a[x-1]})
 		} else {
-			ms.script = append(ms.script, Edit{EQU, ms.a[x-1]})
+			ms.edits = append(ms.edits, Edit{EQU, ms.a[x-1]})
 		}
 	})
 
-	for i, j := 0, len(ms.script)-1; i < j; i, j = i+1, j-1 {
-		ms.script[i], ms.script[j] = ms.script[j], ms.script[i]
-	}
+	slices.Reverse(ms.edits)
 
-	for _, edit := range ms.script {
-		fmt.Printf("%c %c\n", edit.Type, edit.Value)
+	for _, edit := range ms.edits {
+		fmt.Printf("%c %s\n", edit.Type, edit.Value)
 	}
 }
 

@@ -11,6 +11,7 @@ type Repository struct {
 	index     *index.Index
 	database  *Database
 	workspace *Workspace
+	status    *Status
 }
 
 func NewRepository(pathname string) (*Repository, error) {
@@ -32,12 +33,14 @@ func NewRepository(pathname string) (*Repository, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &Repository{
 		path:      pathname,
 		index:     index,
 		refs:      refs,
 		database:  db,
 		workspace: workspace,
+		status:    nil,
 	}, nil
 }
 
@@ -55,4 +58,12 @@ func (r *Repository) Workspace() *Workspace {
 
 func (r *Repository) Database() *Database {
 	return r.database
+}
+
+func (r *Repository) Status() (*Status, error) {
+	if r.status != nil {
+		return r.status, nil
+	}
+
+	return newStatus(r)
 }
