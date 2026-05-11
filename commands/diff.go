@@ -94,11 +94,16 @@ func (h *diffCommandHandler) diffHeadIndex() {
 	for path, state := range indexChanges {
 		var a, b *diffInfo
 		switch state {
+		case internals.ADDED:
+			a = h.fromNothing(path)
+			b = h.fromIndex(path)
 		case internals.MODIFIED:
 			a = h.fromHead(path)
 			b = h.fromIndex(path)
+		case internals.DELETED:
+			a = h.fromHead(path)
+			b = h.fromNothing(path)
 		}
-
 		h.printDiff(a, b)
 	}
 }
@@ -113,11 +118,12 @@ func (h *diffCommandHandler) printDiff(a, b *diffInfo) {
 func (h *diffCommandHandler) printDiffMode(a, b *diffInfo) {
 	if a.mode == b.mode {
 		return
-	}
-	if b.mode != "" {
-		fmt.Fprintf(h.ctx.Stdout, "old mode %s\nnew mode %s\n", a.mode, b.mode)
-	} else {
+	} else if b.mode == "" {
 		fmt.Fprintf(h.ctx.Stdout, "deleted file mode %s\n", a.mode)
+	} else if a.mode == "" {
+		fmt.Fprintf(h.ctx.Stdout, "new file mode %s\n", b.mode)
+	} else {
+		fmt.Fprintf(h.ctx.Stdout, "old mode %s\nnew mode %s\n", a.mode, b.mode)
 	}
 }
 func (h *diffCommandHandler) printDiffContent(a, b *diffInfo) {
