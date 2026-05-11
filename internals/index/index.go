@@ -72,6 +72,9 @@ func (idx *Index) GetEntries() []*IndexEntry {
 
 	return entries
 }
+func (idx *Index) GetEntry(pathname string) *IndexEntry {
+	return idx.entries[pathname]
+}
 
 func (idx *Index) WriteUpdates() error {
 	// we will not acquire a lock here, it should be already acquired when reading it

@@ -4,7 +4,6 @@ import (
 	"JIT/commands/utils"
 	database "JIT/internals/database"
 	"JIT/internals/index"
-	"encoding/hex"
 	"fmt"
 	"time"
 )
@@ -85,7 +84,8 @@ func CommitCommand(ctx *CommandContext) {
 		return
 	}
 
-	short_id := hex.EncodeToString(commit.GetOid())[:7]
+
+	short_id := repo.Database().ShortId(commit.GetOid())
 	is_root := (func() string {
 		if len(parent_id) == 0 {
 			return "(root_commit) "

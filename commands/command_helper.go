@@ -2,6 +2,7 @@ package commands
 
 import (
 	"JIT/internals"
+	database "JIT/internals/database"
 	"bytes"
 	"os"
 	"path/filepath"
@@ -136,9 +137,25 @@ func (h *CommandHelper) JitCommand(argv ...string) *CommandContext {
 }
 
 func (h *CommandHelper) Commit(t *testing.T, message string) {
+	t.Helper()
 	h.setEnv("JIT_AUTHOR_NAME", "A. U. Thor")
 	h.setEnv("JIT_AUTHOR_EMAIL", "author@example.com")
 	h.JitCommand("commit", "-m", message)
+}
+
+func (h *CommandHelper) HashBlob(t *testing.T, pathname string) []byte {
+	t.Helper()
+	content, err := h.repository.Workspace().ReadFile(pathname)
+	if err != nil {
+		t.Fatalf("Could not read file from workspace - %v\n", err)
+	}
+	blob := database.NewBlob(content)
+	oid, err := h.repository.Database().HashObject(blob)
+	if err != nil {
+		t.Fatalf("Could not hash an object - %v\n", err)
+	}
+
+	return oid
 }
 
 func (h *CommandHelper) setEnv(key, value string) {

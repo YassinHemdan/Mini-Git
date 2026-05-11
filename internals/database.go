@@ -9,6 +9,7 @@ import (
 	"compress/zlib"
 	"crypto/sha1"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -170,4 +171,8 @@ func (db *Database) readObject(oid []byte) (database.Object, error) {
 	object := TYPES[objectType](scanner)
 	object.SetOid(oid)
 	return object, nil
+}
+
+func (db *Database) ShortId(oid []byte) string {
+	return hex.EncodeToString(oid)[:7]
 }
