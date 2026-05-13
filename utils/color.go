@@ -5,6 +5,8 @@ import "fmt"
 var SGR_CODES = map[string]int{
 	"red":   31,
 	"green": 32,
+	"cyan":  36,
+	"bold":  1,
 }
 
 func Format(style, str string) string {

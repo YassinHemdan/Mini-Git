@@ -14,38 +14,40 @@ const (
 	INS = '+'
 )
 
-type Edit struct {
-	Type  byte
-	Value string
-}
 type Myers struct {
-	a     []string
-	b     []string
-	edits []Edit
+	a     []*line
+	b     []*line
+	edits []*edit
 }
 
 func NewMyersDiff(a, b string) *Myers {
 	return &Myers{
-		a:     lines(a),
-		b:     lines(b),
-		edits: make([]Edit, 0),
+		a:     toLines(a),
+		b:     toLines(b),
+		edits: make([]*edit, 0),
 	}
 }
-func (ms *Myers) Diff() []Edit {
+
+func DiffHunks(a, b string) []*Hunk {
+	diff := NewMyersDiff(a, b)
+	return hunkFilter(diff.Diff())
+}
+func (ms *Myers) Diff() []*edit {
 	trace := ms.shortestEdit()
 	ms.backtrack(trace, func(prev_x, prev_y, x, y int) {
 		if prev_x == x {
-			ms.edits = append(ms.edits, Edit{INS, ms.b[y-1]})
+			ms.edits = append(ms.edits, &edit{INS, nil, ms.b[prev_y]})
 		} else if prev_y == y {
-			ms.edits = append(ms.edits, Edit{DEL, ms.a[x-1]})
+			ms.edits = append(ms.edits, &edit{DEL, ms.a[prev_x], nil})
 		} else {
-			ms.edits = append(ms.edits, Edit{EQU, ms.a[x-1]})
+			ms.edits = append(ms.edits, &edit{EQU, ms.a[prev_x], ms.b[prev_y]})
 		}
 	})
 
 	slices.Reverse(ms.edits)
 	return ms.edits
 }
+
 func (ms *Myers) shortestEdit() [][]int {
 	n, m := len(ms.a), len(ms.b)
 	max := n + m
@@ -67,7 +69,7 @@ func (ms *Myers) shortestEdit() [][]int {
 
 			y := x - k
 
-			for x < n && y < m && ms.a[x] == ms.b[y] {
+			for x < n && y < m && ms.a[x].text == ms.b[y].text {
 				x++
 				y++
 			}
