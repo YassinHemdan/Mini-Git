@@ -159,9 +159,9 @@ func TestDatabase_LoadTreeObject(t *testing.T) {
 		helper := commands.NewCommandHelper(t)
 
 		fileContentMap := make(map[string]string)
-		fileContentMap["file2.txt"] = "Hello from file2.txt"
+		fileContentMap["file2.txt"] = "Hello from file2.txt\n"
 		fileContentMap["file3.txt"] = "Hello from file3.txt"
-		fileContentMap["file1.txt"] = "Hello from file1.txt"
+		fileContentMap["file1.txt"] = "Hello from file1.txt\n"
 
 		helper.WriteFile(t, "dir/file1.txt", fileContentMap["file1.txt"])
 		helper.WriteFile(t, "dir/file2.txt", fileContentMap["file2.txt"])

@@ -2,8 +2,10 @@ package commands
 
 import (
 	"JIT/commands/utils"
+	diff "JIT/diff"
 	"JIT/internals"
 	database "JIT/internals/database"
+	colorUtil "JIT/utils"
 	"fmt"
 	"path/filepath"
 )
@@ -12,13 +14,15 @@ type diffInfo struct {
 	oid  []byte
 	path string
 	mode string
+	data string
 }
 
-func newDiffInfo(oid []byte, path, mode string) *diffInfo {
+func newDiffInfo(oid []byte, path, mode, data string) *diffInfo {
 	return &diffInfo{
 		oid:  oid,
 		path: path,
 		mode: mode,
+		data: data,
 	}
 }
 
@@ -39,6 +43,7 @@ func DiffCommand(ctx *CommandContext) {
 	handler := &diffCommandHandler{ctx: ctx, status: nil}
 	handler.run()
 }
+
 func (h *diffCommandHandler) run() {
 	repo, err := utils.Repo(h.ctx.Dir)
 	h.repo = repo
@@ -59,53 +64,87 @@ func (h *diffCommandHandler) run() {
 		return
 	}
 	if len(h.ctx.Args) == 0 {
-		h.diffIndexWorkspace()
+		if err := h.diffIndexWorkspace(); err != nil {
+			fmt.Fprintf(h.ctx.Stderr, "Error: Couldn't run diff command - %v\n", err)
+			h.ctx.Status = 128
+			return
+		}
 	} else if h.ctx.Args[0] == "--staged" || h.ctx.Args[0] == "--cached" {
-		h.diffHeadIndex()
+		if err := h.diffHeadIndex(); err != nil {
+			fmt.Fprintf(h.ctx.Stderr, "Error: Couldn't run diff --cached command - %v\n", err)
+			h.ctx.Status = 128
+			return
+		}
 	}
 }
 
-func (h *diffCommandHandler) diffIndexWorkspace() {
+func (h *diffCommandHandler) diffIndexWorkspace() error {
 
 	workspaceChanges := h.status.GetWorkspaceChanges()
 	for path, state := range workspaceChanges {
-		var a, b *diffInfo
 		switch state {
 		case internals.MODIFIED:
-			a = h.fromIndex(path)
-			targetB, err := h.fromFile(path)
-			b = targetB
+			a, err := h.fromIndex(path)
 			if err != nil {
-				fmt.Fprintf(h.ctx.Stderr, "Couldn't get b - %v\n", err)
-				h.ctx.Status = 128
-				return
+				return err
 			}
+
+			b, err := h.fromFile(path)
+			if err != nil {
+				return err
+			}
+
+			h.printDiff(a, b)
 		case internals.DELETED:
-			a = h.fromIndex(path)
-			b = h.fromNothing(path)
+			a, err := h.fromIndex(path)
+			if err != nil {
+				return err
+			}
+			b := h.fromNothing(path)
+
+			h.printDiff(a, b)
 		}
-
-		h.printDiff(a, b)
 	}
-}
 
-func (h *diffCommandHandler) diffHeadIndex() {
+	return nil
+}
+func (h *diffCommandHandler) diffHeadIndex() error {
 	indexChanges := h.status.GetIndexChanges()
 	for path, state := range indexChanges {
-		var a, b *diffInfo
 		switch state {
 		case internals.ADDED:
-			a = h.fromNothing(path)
-			b = h.fromIndex(path)
+			a := h.fromNothing(path)
+			b, err := h.fromIndex(path)
+			if err != nil {
+				return err
+			}
+			h.printDiff(a, b)
 		case internals.MODIFIED:
-			a = h.fromHead(path)
-			b = h.fromIndex(path)
+			a, err := h.fromHead(path)
+			if err != nil {
+				return err
+			}
+
+			b, err := h.fromIndex(path)
+			if err != nil {
+				return err
+			}
+
+			h.printDiff(a, b)
 		case internals.DELETED:
-			a = h.fromHead(path)
-			b = h.fromNothing(path)
+			a, err := h.fromHead(path)
+			if err != nil {
+				return nil
+			}
+
+			b := h.fromNothing(path)
+
+			h.printDiff(a, b)
 		}
-		h.printDiff(a, b)
+
 	}
+
+	return nil
 }
 func (h *diffCommandHandler) printDiff(a, b *diffInfo) {
 	a.path = filepath.Join("a", a.path)
@@ -114,7 +153,34 @@ func (h *diffCommandHandler) printDiff(a, b *diffInfo) {
 	fmt.Fprintf(h.ctx.Stdout, "diff --git %s %s\n", a.path, b.path)
 	h.printDiffMode(a, b)
 	h.printDiffContent(a, b)
+
+	diffAlg := diff.NewMyersDiff(a.data, b.data)
+	edits := diffAlg.Diff()
+
+	/*
+
+		if we found ourselves printing a line that does not have a \n at the end of it
+		that means that we are at the end of one of the two files and it does not have a \n at its end
+	*/
+	for _, edit := range edits {
+		line := fmt.Sprintf("%c%s", edit.Type, edit.Value)
+		newlineMessage := ""
+		if string(line[len(line)-1]) != "\n" {
+			newlineMessage += "\n\\ No newline at end of file\n"
+		}
+		switch edit.Type {
+		case '-':
+			line = colorUtil.Format(RED, line)
+		case '+':
+			line = colorUtil.Format(GREEN, line)
+		}
+		line += newlineMessage
+		fmt.Fprintf(h.ctx.Stdout, "%s", line)
+
+	}
+
 }
+
 func (h *diffCommandHandler) printDiffMode(a, b *diffInfo) {
 	if a.mode == b.mode {
 		return
@@ -140,11 +206,11 @@ func (h *diffCommandHandler) printDiffContent(a, b *diffInfo) {
 	fmt.Fprintf(h.ctx.Stdout, "--- %s\n+++ %s\n", a.diffPath(), b.diffPath())
 }
 
-func (h *diffCommandHandler) fromHead(path string) *diffInfo {
+func (h *diffCommandHandler) fromHead(path string) (*diffInfo, error) {
 	entry := h.status.GetHeadTree()[path]
 	return h.fromEntry(path, entry)
 }
-func (h *diffCommandHandler) fromIndex(path string) *diffInfo {
+func (h *diffCommandHandler) fromIndex(path string) (*diffInfo, error) {
 	entry := h.repo.Index().GetEntry(path)
 	return h.fromEntry(path, entry)
 }
@@ -169,14 +235,19 @@ func (h *diffCommandHandler) fromFile(path string) (*diffInfo, error) {
 		mode = "100755"
 	}
 
-	return newDiffInfo(oid, path, mode), nil
+	return newDiffInfo(oid, path, mode, string(content)), nil
 
 }
 func (h *diffCommandHandler) fromNothing(path string) *diffInfo {
-	return newDiffInfo(make([]byte, 40), path, "")
+	return newDiffInfo(make([]byte, 40), path, "", "")
 }
-func (h *diffCommandHandler) fromEntry(path string, entry database.Entry) *diffInfo {
-	return newDiffInfo(entry.GetOid(), path, entry.GetMode())
+func (h *diffCommandHandler) fromEntry(path string, entry database.Entry) (*diffInfo, error) {
+	obj, err := h.repo.Database().Load(entry.GetOid())
+	blob := obj.(*database.Blob)
+	if err != nil {
+		return nil, err
+	}
+	return newDiffInfo(entry.GetOid(), path, entry.GetMode(), string(blob.GetData())), nil
 }
 func (h *diffCommandHandler) short(oid []byte) string {
 	return h.repo.Database().ShortId(oid)

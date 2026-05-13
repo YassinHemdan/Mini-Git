@@ -38,7 +38,7 @@ func (ss *SmartScanner) ScanRest() bool {
 			return 0, nil, nil
 		}
 		if atEOF {
-			return len(data), bytes.TrimRight(data, "\n"), nil
+			return len(data), data, nil
 		}
 		return 0, nil, nil
 	})
