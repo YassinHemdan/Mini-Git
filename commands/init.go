@@ -24,7 +24,7 @@ func InitCommand(ctx *CommandContext) {
 
 	for _, content := range strings.Split(utils.JitMetadataContent, "|") {
 		filepath := filepath.Join(jit_dir, content)
-		if err := os.Mkdir(filepath, utils.JitDefaultPermission); err != nil {
+		if err := os.MkdirAll(filepath, utils.JitDefaultPermission); err != nil {
 			fmt.Fprintf(ctx.Stderr, "Error: Can't create %s in .jit - %v\n", filepath, err)
 			ctx.Status = 1
 			return

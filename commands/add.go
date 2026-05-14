@@ -22,7 +22,6 @@ func AddCommand(ctx *CommandContext) {
 }
 
 func (h *addCommandHandler) run() {
-	fmt.Println("Add command called")
 	if len(h.ctx.Args) <= 0 {
 		fmt.Fprintf(h.ctx.Stderr, "No files provided to add\n")
 		h.ctx.Status = 128
@@ -39,17 +38,14 @@ func (h *addCommandHandler) run() {
 
 	h.repo = repo
 
-	verified, err := h.repo.Index().LoadForUpdate()
+	_, err = h.repo.Index().LoadForUpdate()
 	if err != nil {
 		fmt.Fprintf(h.ctx.Stderr, "Could not load index: %v\n", err)
 		h.ctx.Status = 128
 		return
 	}
 
-	fmt.Println(verified)
-
 	filesToAdd, err := h.expandedPaths()
-
 
 	if err != nil {
 		h.handleError(err)
@@ -61,7 +57,6 @@ func (h *addCommandHandler) run() {
 			h.handleError(err)
 			return
 		}
-		fmt.Printf("Adding file: %s\n", fileName)
 	}
 
 	if err := h.repo.Index().WriteUpdates(); err != nil {

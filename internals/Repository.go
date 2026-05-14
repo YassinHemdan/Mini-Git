@@ -15,6 +15,7 @@ type Repository struct {
 }
 
 func NewRepository(pathname string) (*Repository, error) {
+
 	index, err := index.NewIndex(filepath.Join(pathname, "index"))
 	if err != nil {
 		return nil, err
@@ -66,4 +67,8 @@ func (r *Repository) Status() (*Status, error) {
 	}
 
 	return newStatus(r)
+}
+
+func (r *Repository) RepoPath() string {
+	return r.path
 }

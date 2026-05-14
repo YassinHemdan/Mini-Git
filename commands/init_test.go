@@ -27,7 +27,7 @@ func TestInitCommand(t *testing.T) {
 
 	jitDir := filepath.Join(repoDir, ".jit")
 	objectsDir := filepath.Join(jitDir, "objects")
-	refsDir := filepath.Join(jitDir, "refs")
+	refsDir := filepath.Join(jitDir, "refs", "heads")
 
 	assertDirExists(t, jitDir)
 	assertDirExists(t, objectsDir)

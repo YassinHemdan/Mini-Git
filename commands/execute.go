@@ -12,7 +12,8 @@ var COMMANDS = map[string]CommandFunc{
 	"add":    AddCommand,
 	"commit": CommitCommand,
 	"status": StatusCommand,
-	"diff":    DiffCommand,
+	"diff":   DiffCommand,
+	"branch": BranchCommand,
 }
 
 func Execute(
@@ -39,5 +40,6 @@ func Execute(
 	ctx := NewCommandContext(dir, env, args, stdin, stdout, stderr)
 	cmdFunc(ctx)
 
+	
 	return ctx
 }

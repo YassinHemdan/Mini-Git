@@ -5,5 +5,5 @@ import "os"
 const (
 	JitMetadataDir       = ".jit"
 	JitDefaultPermission = os.FileMode(0744)
-	JitMetadataContent   = "objects|refs"
+	JitMetadataContent   = "objects|refs/heads"
 )
