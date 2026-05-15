@@ -57,5 +57,21 @@ func (h *branchCommandHandler) listBranches() error {
 
 func (h *branchCommandHandler) createBranch() error {
 	branchName := h.ctx.Args[0]
-	return h.repo.Refs().CreateBranch(branchName)
+	startOid, err := h.repo.Refs().ReadHead()
+	if err != nil {
+		return err
+	}
+
+	if len(h.ctx.Args) >= 2 {
+		rev := internals.NewRevision(h.repo, h.ctx.Args[1])
+		oid, err := rev.Resolve()
+		if err != nil {
+			return err
+		}
+
+		startOid = oid
+	}
+
+	fmt.Printf("%x\n", startOid)
+	return h.repo.Refs().CreateBranch(branchName, startOid)
 }

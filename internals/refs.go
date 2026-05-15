@@ -2,17 +2,15 @@ package internals
 
 import (
 	"JIT/internals/locks"
+	"JIT/internals/utils"
 	"bytes"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 )
-
-var invalidName = regexp.MustCompile(`^\.|/\.|\.\.|^/|/$|\.lock$|@\{|[\x00-\x20*:?\[\\^~\x7f]`)
 
 const (
 	HEAD = "HEAD"
@@ -51,28 +49,22 @@ func NewRefs(pathname string) (*Refs, error) {
 	}, nil
 }
 
-func (r *Refs) CreateBranch(branchName string) error {
+func (r *Refs) CreateBranch(branchName string, oid []byte) error {
 	/*
 		to create a branch, we wanna make sure its name is valid and it was not created before
 	*/
-	if invalidName.MatchString(branchName) {
+	if !utils.IsValidName(branchName) {
 		return &InvalidBranch{
-			message: fmt.Sprintf("fatal: '%s' is not a valid branch name", branchName),
+			message: fmt.Sprintf("'%s' is not a valid branch name.", branchName),
 		}
 	}
 
 	branchPath := filepath.Join(r.headsPath, branchName)
 	if _, err := os.Stat(branchPath); err == nil {
 		return &InvalidBranch{
-			message: fmt.Sprintf("fatal: A branch named '%s' already exists", branchName),
+			message: fmt.Sprintf("fatal: A branch named '%s' already exists.", branchName),
 		}
 	}
-
-	oid, err := r.ReadHead()
-	if err != nil {
-		return err
-	}
-
 	return r.updateRefFile(branchPath, oid)
 }
 
@@ -120,6 +112,46 @@ func (r *Refs) ReadHead() ([]byte, error) {
 	file.Close()
 
 	return hex.DecodeString(strings.TrimSpace(file_content.String()))
+}
+
+func (r *Refs) ReadRef(name string) ([]byte, error) {
+	refPath := r.pathForName(name)
+	if refPath == "" {
+		return nil, &InvalidBranch{
+			message: fmt.Sprintf("fatal: '%s' is not a valid branch name", name),
+		}
+	}
+
+	file, err := os.Open(refPath)
+
+	if err != nil {
+		return nil, nil // file does not exist
+	}
+
+	var file_content bytes.Buffer
+
+	if _, err := io.Copy(&file_content, file); err != nil {
+		return nil, fmt.Errorf("Couldn't copy from branch file - %v", err)
+	}
+
+	file.Close()
+
+	return hex.DecodeString(strings.TrimSpace(file_content.String()))
+
+}
+
+func (r *Refs) pathForName(name string) string {
+	prefixs := []string{r.pathname, r.refsPath, r.headsPath}
+	for _, prefix := range prefixs {
+		fullpath := filepath.Join(prefix, name)
+
+		info, err := os.Stat(fullpath)
+		if err == nil && info.Mode().IsRegular() {
+			return fullpath
+		}
+	}
+
+	return ""
 }
 
 func (r *Refs) getHeadPath() string {

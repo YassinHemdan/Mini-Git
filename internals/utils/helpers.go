@@ -2,8 +2,11 @@ package utils
 
 import (
 	"path/filepath"
+	"regexp"
 	"strings"
 )
+
+var invalidName = regexp.MustCompile(`^\.|/\.|\.\.|^/|/$|\.lock$|@\{|[\x00-\x20*:?\[\\^~\x7f]`)
 
 func ParentDirectories(pathname string) []string {
 	prefixs := strings.Split(filepath.ToSlash(pathname), "/")
@@ -14,4 +17,8 @@ func ParentDirectories(pathname string) []string {
 	}
 
 	return parents
+}
+
+func IsValidName(name string) bool {
+	return !invalidName.MatchString(name)
 }

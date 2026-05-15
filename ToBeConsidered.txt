@@ -1,0 +1,7 @@
+1- We need to create the refs/heads/master when making our first commit
+as we will rely on it in the future
+- for example, we need to handle the case where the user tries to create a branch with
+no commits yet, we should show an error "Not a valid object name: 'master'."
+
+
+2- in the Refs, ReadHead and ReadRef methods almost have the same code, we can remove the boilerplate code.
