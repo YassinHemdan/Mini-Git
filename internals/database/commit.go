@@ -92,3 +92,7 @@ func (c *Commit) ToString() string {
 	})()
 	return fmt.Sprintf("tree %x\n%sauthor %s\ncommitter %s\n\n%s\n", c.tree_oid, parent, c.author.ToString(), c.committer.ToString(), c.message)
 }
+
+func (c *Commit) Author() *Author {
+	return &c.author
+}

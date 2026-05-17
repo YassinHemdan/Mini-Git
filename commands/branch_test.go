@@ -7,10 +7,87 @@ import (
 	"testing"
 )
 
+type TestEntry struct {
+	branchName    string
+	objectName    string
+	expectedError string
+}
+
+func loadTestEntries() []*TestEntry {
+	entries := make([]*TestEntry, 0)
+
+	entries = append(entries, (func() *TestEntry {
+		branchName := "^^Hsja~"
+		objectName := "HEAD^^"
+		errorMessage := fmt.Sprintf("fatal: '%s' is not a valid branch name.\n", branchName)
+
+		return &TestEntry{branchName: branchName, objectName: objectName, expectedError: errorMessage}
+	})())
+	entries = append(entries, (func() *TestEntry {
+		branchName := "test-branch"
+		objectName := "HEAD^^"
+		errorMessage := fmt.Sprintf("fatal: A branch named '%s' already exists.\n", branchName)
+
+		return &TestEntry{branchName: branchName, objectName: objectName, expectedError: errorMessage}
+	})())
+	entries = append(entries, (func() *TestEntry {
+		branchName := "alice"
+		objectName := "HEAD.lock^^~4"
+		errorMessage := fmt.Sprintf("fatal: Not a valid object name: '%s'.\n", objectName)
+
+		return &TestEntry{branchName: branchName, objectName: objectName, expectedError: errorMessage}
+	})())
+	entries = append(entries, (func() *TestEntry {
+		branchName := "alice"
+		objectName := "mybranch~1"
+		errorMessage := fmt.Sprintf("fatal: Not a valid object name: '%s'.\n", objectName)
+
+		return &TestEntry{branchName: branchName, objectName: objectName, expectedError: errorMessage}
+	})())
+	entries = append(entries, (func() *TestEntry {
+		branchName := "alice"
+		shortId := "109d"
+		objectName := "109d"
+
+		errorMessage := fmt.Sprintf("error: short object ID %s is ambiguous\n", shortId)
+		errorMessage += "hint: The candidates are:\n"
+		errorMessage += "hint:   109d62b tree\n"
+		errorMessage += "hint:   109ddbe blob\n"
+
+		errorMessage += fmt.Sprintf("fatal: Not a valid object name: '%s'.\n", objectName)
+
+		return &TestEntry{branchName: branchName, objectName: objectName, expectedError: errorMessage}
+	})())
+	entries = append(entries, (func() *TestEntry {
+		branchName := "alice"
+		shortId := "109d"
+		objectName := "109d^^"
+
+		errorMessage := fmt.Sprintf("error: short object ID %s is ambiguous\n", shortId)
+		errorMessage += "hint: The candidates are:\n"
+		errorMessage += "hint:   109d62b tree\n"
+		errorMessage += "hint:   109ddbe blob\n"
+
+		errorMessage += fmt.Sprintf("fatal: Not a valid object name: '%s'.\n", objectName)
+
+		return &TestEntry{branchName: branchName, objectName: objectName, expectedError: errorMessage}
+	})())
+	entries = append(entries, (func() *TestEntry {
+		branchName := "alice"
+		oid := "109ddbe08498ec59ebea97d811e578a890ed2903"
+		objectName := "109ddbe"
+
+		errorMessage := fmt.Sprintf("error: object %s is a blob, not a commit\n", oid)
+		errorMessage += fmt.Sprintf("fatal: Not a valid branch point: '%s'.\n", objectName)
+
+		return &TestEntry{branchName: branchName, objectName: objectName, expectedError: errorMessage}
+	})())
+	return entries
+}
 func TestBranch(t *testing.T) {
 	t.Run("TestingRevisions-NoErrorsExpected-HEAD", func(t *testing.T) {
 		helper := NewCommandHelper(t)
-		makeCommits(helper, t, 10)
+		generateCommits(helper, t, 10)
 
 		tests := []struct {
 			branchName string
@@ -79,7 +156,7 @@ func TestBranch(t *testing.T) {
 
 	t.Run("TestingRevisions-NoErrorsExpected-AtSign", func(t *testing.T) {
 		helper := NewCommandHelper(t)
-		makeCommits(helper, t, 10)
+		generateCommits(helper, t, 10)
 
 		tests := []struct {
 			branchName string
@@ -108,7 +185,7 @@ func TestBranch(t *testing.T) {
 
 	t.Run("TestingRevisions-NoErrorsExpected-BranchName", func(t *testing.T) {
 		helper := NewCommandHelper(t)
-		makeCommits(helper, t, 10)
+		generateCommits(helper, t, 10)
 
 		startBranch := "main"
 		helper.JitCommand("branch", startBranch)
@@ -142,7 +219,7 @@ func TestBranch(t *testing.T) {
 func TestBranch_v2(t *testing.T) {
 	t.Run("TestingRevisions-NoErrorsExpected-FromCreatedBranches", func(t *testing.T) {
 		helper := NewCommandHelper(t)
-		makeCommits(helper, t, 10)
+		generateCommits(helper, t, 10)
 		helper.JitCommand("branch", "baseA", "HEAD")
 		helper.JitCommand("branch", "baseB", "HEAD~3")
 		helper.JitCommand("branch", "baseC", "HEAD~5")
@@ -190,7 +267,90 @@ func TestBranch_v2(t *testing.T) {
 	})
 }
 
-func makeCommits(helper *CommandHelper, t *testing.T, n int) {
+func TestBranch_v3(t *testing.T) {
+	t.Run("InvalidBranchName", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		generateCommits(helper, t, 3)
+
+		invalidBranchNames := []string{
+			".branch",
+			"feature/.test",
+			"feature..test",
+			"/feature",
+			"feature/",
+			"branch.lock",
+			"feature@{test",
+			"feature test",
+			"feature~test",
+			"feature^test",
+			"feature:test",
+			"feature?test",
+			"feature*test",
+			"feature[test",
+			"feature\\test",
+		}
+
+		for _, branchName := range invalidBranchNames {
+			t.Run(branchName, func(t *testing.T) {
+				helper.JitCommand("branch", branchName)
+
+				// helper.AssertStatus(t, 1)
+				helper.AssertStderr(t, "fatal: "+"'"+branchName+"' is not a valid branch name.\n")
+
+				oid, _ := getBranchOid(helper.Repo(t), branchName)
+				if oid != nil {
+					t.Fatalf("branch %q should not have been created", branchName)
+				}
+			})
+		}
+	})
+
+	t.Run("BranchAlreadyExists", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		generateCommits(helper, t, 3)
+
+		existingBranchNames := []string{
+			"feature",
+			"dev",
+			"test-branch",
+			// "topic/one", fails, to be handled in the future
+		}
+
+		for _, branchName := range existingBranchNames {
+			t.Run(branchName, func(t *testing.T) {
+				helper.JitCommand("branch", branchName)
+				helper.JitCommand("branch", branchName)
+
+				helper.AssertStderr(t, "fatal: A branch named '"+branchName+"' already exists.\n")
+			})
+		}
+	})
+}
+
+func TestBranch_v4(t *testing.T) {
+	helper := NewCommandHelperWithTestRepo(t)
+
+	/*
+		check three main things:
+			1- InvalidObject only
+			2- InvalidBranch only
+			3- Both together -> we should recevie the same error as if it is an InvalidObject only
+
+		For InvalidObject:
+			- wrong object name
+			- ambiguous abbreviationID // use 109d
+			- object name does not exists
+			- abbr id that does not match a commit object
+	*/
+
+	testEntries := loadTestEntries()
+
+	for _, entry := range testEntries {
+		helper.JitCommand("branch", entry.branchName, entry.objectName)
+		helper.AssertStderr(t, entry.expectedError)
+	}
+}
+func generateCommits(helper *CommandHelper, t *testing.T, n int) {
 	t.Helper()
 	content := "hello"
 	filename := "file.txt"

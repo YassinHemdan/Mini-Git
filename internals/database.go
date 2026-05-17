@@ -14,6 +14,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type IDatabase interface {
@@ -175,4 +176,27 @@ func (db *Database) readObject(oid []byte) (database.Object, error) {
 
 func (db *Database) ShortId(oid []byte) string {
 	return hex.EncodeToString(oid)[:7]
+}
+
+func (db *Database) PrefixMatch(oidPrefix string) ([]string, error) {
+	// we need to return all the files that have prefix name == oid
+	workspace, err := NewWorkspace(db.path)
+	if err != nil {
+		return nil, err
+	}
+
+	objectsNames, err := workspace.ListFiles("")
+	if err != nil {
+		return nil, err
+	}
+
+	oids := make([]string, 0)
+	for _, objectName := range objectsNames {
+		fullname := filepath.Dir(objectName) + filepath.Base(objectName)
+		if strings.HasPrefix(fullname, oidPrefix) {
+			oids = append(oids, fullname)
+		}
+	}
+
+	return oids, nil
 }

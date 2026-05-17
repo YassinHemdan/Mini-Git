@@ -125,11 +125,9 @@ func (w *Workspace) ListDir(pathname string) (map[string]os.FileInfo, error) {
 	}
 	return result, nil
 }
-
 func (w *Workspace) GetFileState(fileName string) (os.FileInfo, error) {
 	return os.Stat(w.fullpath(fileName))
 }
-
 func (w *Workspace) GetDirState() os.FileMode {
 	return os.FileMode(040000)
 }
@@ -152,7 +150,6 @@ func (w *Workspace) ReadFile(fileName string) ([]byte, error) {
 func (w *Workspace) fullpath(pathname string) string {
 	return filepath.Join(w.root, pathname)
 }
-
 func (w *Workspace) IsExecutable(pathname string) (bool, error) {
 	fileInfo, err := w.GetFileState(pathname)
 	if err != nil {

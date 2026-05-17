@@ -1,0 +1,42 @@
+0000000000000000000000000000000000000000 399f8b7383e4efa7c24a0b923dce5c82a9ad4f53 yassin hemdan <ym910402@gmail.com> 1771136728 +0200	commit (initial): Implemented the init, commit commands and blob object
+399f8b7383e4efa7c24a0b923dce5c82a9ad4f53 0000000000000000000000000000000000000000 yassin hemdan <ym910402@gmail.com> 1771136747 +0200	Branch: renamed refs/heads/master to refs/heads/main
+0000000000000000000000000000000000000000 399f8b7383e4efa7c24a0b923dce5c82a9ad4f53 yassin hemdan <ym910402@gmail.com> 1771136747 +0200	Branch: renamed refs/heads/master to refs/heads/main
+399f8b7383e4efa7c24a0b923dce5c82a9ad4f53 fd55540b6246697188bfb8fea185963b927f346f yassin hemdan <ym910402@gmail.com> 1771159768 +0200	commit: creating tree object 'Linear for now'
+fd55540b6246697188bfb8fea185963b927f346f 6fc2d400107413a5a21ae4f2bbf0bb69b555d9ec yassin hemdan <ym910402@gmail.com> 1771577404 +0200	commit: creating commit object
+6fc2d400107413a5a21ae4f2bbf0bb69b555d9ec 6355b30111a6b880aab21097061b28bb507b0ef1 yassin hemdan <ym910402@gmail.com> 1771739475 +0200	commit: HEAD File
+6355b30111a6b880aab21097061b28bb507b0ef1 171a2cf6a2122bcb9edf0a4dd9abbc4984af6278 yassin hemdan <ym910402@gmail.com> 1771751934 +0200	commit: chaining commits together
+171a2cf6a2122bcb9edf0a4dd9abbc4984af6278 0e4633e6951df680b1c884087713dd1052168ae1 yassin hemdan <ym910402@gmail.com> 1771772253 +0200	commit: modifications
+0e4633e6951df680b1c884087713dd1052168ae1 cab1cb51c7408f83ef6a9404026f98a2d4d923ca yassin hemdan <ym910402@gmail.com> 1772500392 +0200	commit: file's mode
+cab1cb51c7408f83ef6a9404026f98a2d4d923ca c113c6aed68c82354857ad9d1b1940484d4df203 yassin hemdan <ym910402@gmail.com> 1773812049 +0200	commit: Creating workspace
+c113c6aed68c82354857ad9d1b1940484d4df203 8e7fe9feb45197d6f3dd9b839c8c33c6a448e998 yassin hemdan <ym910402@gmail.com> 1774319799 +0200	commit: initial recursive trees implemented
+8e7fe9feb45197d6f3dd9b839c8c33c6a448e998 2863774275e073c9d2bf950218dd833e174a9646 yassin hemdan <ym910402@gmail.com> 1775111528 +0200	commit: tests
+2863774275e073c9d2bf950218dd833e174a9646 02026827b3dd7af7714d14e63582b272a601c0de yassin hemdan <ym910402@gmail.com> 1775112166 +0200	commit: First Working Version :)
+02026827b3dd7af7714d14e63582b272a601c0de a088bc2bba18927e5f5b67e6ba7bd38e4235ca50 yassin hemdan <ym910402@gmail.com> 1775113641 +0200	commit: Reorganizing project structure
+a088bc2bba18927e5f5b67e6ba7bd38e4235ca50 0681165c64e2f48855a1089df4a7b696ce6ffa1c yassin hemdan <ym910402@gmail.com> 1775113881 +0200	commit: Removing printing lines
+0681165c64e2f48855a1089df4a7b696ce6ffa1c 0681165c64e2f48855a1089df4a7b696ce6ffa1c yassin hemdan <ym910402@gmail.com> 1775301865 +0200	checkout: moving from main to main
+0681165c64e2f48855a1089df4a7b696ce6ffa1c 0681165c64e2f48855a1089df4a7b696ce6ffa1c yassin hemdan <ym910402@gmail.com> 1775301890 +0200	checkout: moving from main to test-branch
+0681165c64e2f48855a1089df4a7b696ce6ffa1c 0681165c64e2f48855a1089df4a7b696ce6ffa1c yassin hemdan <ym910402@gmail.com> 1775302112 +0200	checkout: moving from test-branch to main
+0681165c64e2f48855a1089df4a7b696ce6ffa1c d8b4aeaa0b6d91302063140dcfb4f16d34fa1010 yassin hemdan <ym910402@gmail.com> 1775322709 +0200	commit: Basic add command implementation
+d8b4aeaa0b6d91302063140dcfb4f16d34fa1010 c861db307d1b1462fc56b9e5c4a13cc277b1518e yassin hemdan <ym910402@gmail.com> 1775427439 +0200	commit: Adding multiple files from directories
+c861db307d1b1462fc56b9e5c4a13cc277b1518e 57e00d5143681bec5568bd1929c490a5b937bb8a yassin hemdan <ym910402@gmail.com> 1775548177 +0200	commit: Using add and commit commands together
+57e00d5143681bec5568bd1929c490a5b937bb8a d9a77477bf0440059bc37eefd1cddca5a04866d6 yassin hemdan <ym910402@gmail.com> 1776007664 +0200	commit: Unit testing for Add method
+d9a77477bf0440059bc37eefd1cddca5a04866d6 ecd8c4e494cc2edcd2385e44a0909489db9da1a0 yassin hemdan <ym910402@gmail.com> 1776212877 +0200	commit: Refactoring commands + adding tests for init and add commands
+ecd8c4e494cc2edcd2385e44a0909489db9da1a0 6ea07ef815ab903ae5e69250b6059eb37ddcbc1c yassin hemdan <ym910402@gmail.com> 1776367659 +0200	commit: Adding more tests + Re-organizing add command
+6ea07ef815ab903ae5e69250b6059eb37ddcbc1c 0799ed81d499863d083f832e11dc37b030d2ba29 yassin hemdan <ym910402@gmail.com> 1776483258 +0200	commit: Basic Implementation of status command + More of unit tests
+0799ed81d499863d083f832e11dc37b030d2ba29 50338c010c22fd277f825f2bbc1ebe7dc7ad89c1 yassin hemdan <ym910402@gmail.com> 1776640729 +0200	commit: handling untracked empty directories
+50338c010c22fd277f825f2bbc1ebe7dc7ad89c1 cd8a4c4599cb904ccb37c5066cd1c021a6f1e4ee yassin hemdan <ym910402@gmail.com> 1776814621 +0200	commit: First Version Of Status Command
+cd8a4c4599cb904ccb37c5066cd1c021a6f1e4ee 4e86abd282e80e94092c6549bb10afaec2d3ce83 yassin hemdan <ym910402@gmail.com> 1776906596 +0200	commit: Refactoring Blob Structure
+4e86abd282e80e94092c6549bb10afaec2d3ce83 177841e586ce6829a250a498e0f0e2451cfec552 yassin hemdan <ym910402@gmail.com> 1777332582 +0300	commit: loading objects from database
+177841e586ce6829a250a498e0f0e2451cfec552 03fbb95b619c58b1950baf21bd89caba96926a38 yassin hemdan <ym910402@gmail.com> 1777339309 +0300	commit: Refactoring The entries. Introducing BuildEntry and TreeEntry
+03fbb95b619c58b1950baf21bd89caba96926a38 1310cfb9992b27c5148609444befac908806c6e9 yassin hemdan <ym910402@gmail.com> 1777467845 +0300	commit: implementing show_head to list all committed files
+1310cfb9992b27c5148609444befac908806c6e9 f4ebb264f6bcbaa4901d2dd05dee8061c8888c9f yassin hemdan <ym910402@gmail.com> 1777820931 +0300	commit: Extending the status to report INDEX/HEAD changes
+f4ebb264f6bcbaa4901d2dd05dee8061c8888c9f eb3bc9e2bd653e44e63c98dece0a2e3ae765fb6a yassin hemdan <ym910402@gmail.com> 1777971369 +0300	commit: Refactoring status cmd to support the long format
+eb3bc9e2bd653e44e63c98dece0a2e3ae765fb6a 39cdfb776b27965e60d987b6b5ef467a3a05dae5 yassin hemdan <ym910402@gmail.com> 1778000266 +0300	commit: Status Long Format Implemented
+39cdfb776b27965e60d987b6b5ef467a3a05dae5 80c97dbda37527b5618b51104477719dfd36c14b yassin hemdan <ym910402@gmail.com> 1778261932 +0300	commit: Implementation of Myers Diff Algorithm
+80c97dbda37527b5618b51104477719dfd36c14b 88cec206d694c0a0715145f6d9ad3ee365446877 yassin hemdan <ym910402@gmail.com> 1778367045 +0300	commit: Separating status business logic from the display logic + refactored diff to compare lines instead of a single character
+88cec206d694c0a0715145f6d9ad3ee365446877 4f1e6d95231f233e3e67409e087ae94804f1251d yassin hemdan <ym910402@gmail.com> 1778537522 +0300	commit: A very basic implementation for the diff command. No use for the diff algorithm yet.
+4f1e6d95231f233e3e67409e087ae94804f1251d 0cccdd007cb8ce7a52145e457c486558f8aaecd2 yassin hemdan <ym910402@gmail.com> 1778540882 +0300	commit: Diff command - Supporting modified and deleted files from the index
+0cccdd007cb8ce7a52145e457c486558f8aaecd2 0d4e14a93d28ee75bb73f9ce356be27d33601c9e yassin hemdan <ym910402@gmail.com> 1778632944 +0300	commit: Fixing bugs
+0d4e14a93d28ee75bb73f9ce356be27d33601c9e e83c7cd78cb26fbb4b8aec1cb07f459f28abb5f7 yassin hemdan <ym910402@gmail.com> 1778641389 +0300	commit: Implemented Diff Hunks - To print the differences between a two files in a better way
+e83c7cd78cb26fbb4b8aec1cb07f459f28abb5f7 e0a9aea65fda0838d017df6df10e3bd1a32d86e2 yassin hemdan <ym910402@gmail.com> 1778721367 +0300	commit: A very basic implementation for adding and listing branches
+e0a9aea65fda0838d017df6df10e3bd1a32d86e2 625292ae363827c36d7afc1d8ca44172b6b8b058 yassin hemdan <ym910402@gmail.com> 1778822522 +0300	commit: Implementing a simple AST for parsing git revisions + unit tests

@@ -1,0 +1,15 @@
+I created this .jit repo for testing purposes
+I saw that there will be cases that will be hard to simulate with our unit tests, for example, 
+consider this command , git branch topic 164ha3^
+
+the 164ha3 id might be matched with more than one id, so we should expect a specific error message when this happens
+and to make this work, we will need to create by ourselves objects with a custom names to make it overlap
+in their prefixes but that also might now work correctly as we will need to instantiate the physical stored
+objects by their oids
+
+so in that case I created this repo that is already have a lot of objects (some of them have common prefix)
+and we will use them directly
+
+
+for now, we will have to look into the objects that have similar prefixs by ourselves and hardcode them
+in our tests, but in the future, I will write some code to get these objects for us

@@ -42,6 +42,22 @@ func NewCommandHelper(t *testing.T) *CommandHelper {
 	return helper
 }
 
+func NewCommandHelperWithTestRepo(t *testing.T) *CommandHelper {
+	t.Helper()
+	root, _ := os.Getwd()
+	root = filepath.Dir(root)
+	// I think that it would be better to copy this .jit to a temp folder and work on it and after that
+	// we clear it as we don't want to corrupt our current copy of it. TODO THIS LATER
+	// for now we will use the current copy directly
+
+	repoDir := filepath.Join(root, "testingRepo")
+	helper := &CommandHelper{
+		repoPath: repoDir,
+		Env:      make(map[string]string),
+	}
+	return helper
+}
+
 func (h *CommandHelper) RepoPath() string {
 	return h.repoPath
 }
@@ -179,7 +195,7 @@ func (h *CommandHelper) AssertStdout(t *testing.T, message string) {
 func (h *CommandHelper) AssertStderr(t *testing.T, message string) {
 	t.Helper()
 	if message != h.Stderr.String() {
-		t.Errorf("Error: expected message '%s'\nbut found '%s'\n", message, h.Stdout.String())
+		t.Errorf("Error: expected message '%s'\nbut found '%s'\n", message, h.Stderr.String())
 	}
 }
 

@@ -4,4 +4,11 @@ as we will rely on it in the future
 no commits yet, we should show an error "Not a valid object name: 'master'."
 
 
-2- in the Refs, ReadHead and ReadRef methods almost have the same code, we can remove the boilerplate code.
+2- there is case where the branch name might be something like:  topic/sub1/sub2
+    this case is being handled by git by creating the parent dirs topic/sub2 and the actual file
+    for the branch is sub2.. for now this case fails in our implementation, to be handled in the future :)
+
+
+
+3- Copy the repo in tesingRepo folder during testing to make sure that the original one is 
+corrupted

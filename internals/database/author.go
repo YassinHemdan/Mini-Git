@@ -134,3 +134,7 @@ func parseTime(raw string) (time.Time, error) {
 
 	return t, nil
 }
+
+func (a *Author) ShortDate() string {
+	return a.time.Format("2006-01-02")
+}
