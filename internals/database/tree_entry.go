@@ -4,8 +4,11 @@ import "fmt"
 
 
 /*
-	- We only need the name, oid, and the mode for any entry in our tree
-	  So we will introduce the TreeEntry to carry this information for us
+	- We only need the name, oid, and the mode when reading an entry from a tree
+		(Reading only the top level)
+	- this is difference when building/writing it, we will need the full tree
+
+		So we will introduce the TreeEntry to carry this information for us
 	
 	- This is different from the IndexEntry and BuildEntry
 */

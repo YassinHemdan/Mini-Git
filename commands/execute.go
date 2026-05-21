@@ -8,12 +8,14 @@ import (
 type CommandFunc func(ctx *CommandContext)
 
 var COMMANDS = map[string]CommandFunc{
-	"init":   InitCommand,
-	"add":    AddCommand,
-	"commit": CommitCommand,
-	"status": StatusCommand,
-	"diff":   DiffCommand,
-	"branch": BranchCommand,
+	"init":     InitCommand,
+	"add":      AddCommand,
+	"commit":   CommitCommand,
+	"status":   StatusCommand,
+	"diff":     DiffCommand,
+	"branch":   BranchCommand,
+	"checkout": CheckoutCommand,
+	"switch":   CheckoutCommand,
 }
 
 func Execute(
@@ -40,6 +42,5 @@ func Execute(
 	ctx := NewCommandContext(dir, env, args, stdin, stdout, stderr)
 	cmdFunc(ctx)
 
-	
 	return ctx
 }

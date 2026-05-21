@@ -4,6 +4,7 @@ import (
 	"JIT/internals"
 	database "JIT/internals/database"
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -110,9 +111,16 @@ func (h *CommandHelper) Touch(t *testing.T, name string) {
 func (h *CommandHelper) Delete(t *testing.T, name string) {
 	t.Helper()
 	pathname := filepath.Join(h.repoPath, name)
+	files, err := h.Repo(t).Workspace().ListFiles("")
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	fmt.Println(files)
 	if err := os.RemoveAll(pathname); err != nil {
 		t.Fatalf("Could not delete %s - %v", pathname, err)
 	}
+	files, _ = h.repository.Workspace().ListFiles("")
+	fmt.Println(files)
 }
 
 func (h *CommandHelper) Mkdir(t *testing.T, name string) {

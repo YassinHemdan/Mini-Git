@@ -3,6 +3,7 @@ package internals
 import (
 	// "JIT/internals/database"
 	database "JIT/internals/database"
+	internals "JIT/internals/database"
 	"JIT/internals/utils"
 	scanner "JIT/utils"
 	"bytes"
@@ -199,4 +200,12 @@ func (db *Database) PrefixMatch(oidPrefix string) ([]string, error) {
 	}
 
 	return oids, nil
+}
+
+func (db *Database) TreeDiff(a, b []byte) (map[string][]internals.Entry, error) {
+	diff := newTreeDiff(db)
+	if err := diff.CompareOIDs(a, b, ""); err != nil {
+		return nil, err
+	}
+	return diff.changes, nil
 }

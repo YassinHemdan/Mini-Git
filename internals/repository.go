@@ -1,6 +1,7 @@
 package internals
 
 import (
+	internals "JIT/internals/database"
 	index "JIT/internals/index"
 	"path/filepath"
 )
@@ -60,7 +61,9 @@ func (r *Repository) Workspace() *Workspace {
 func (r *Repository) Database() *Database {
 	return r.database
 }
-
+func (r *Repository) Migration(diff map[string][]internals.Entry) *Migration {
+	return newMigration(r, diff)
+}
 func (r *Repository) Status() (*Status, error) {
 	if r.status != nil {
 		return r.status, nil
