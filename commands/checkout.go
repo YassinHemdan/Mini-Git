@@ -28,6 +28,11 @@ func (h *checkoutCommandHandler) run() {
 	h.repo = repo
 	target := h.ctx.Args[0]
 
+	if _, err := h.repo.Index().LoadForUpdate(); err != nil {
+		fmt.Fprintf(h.ctx.Stderr, "Could not load index: %v\n", err)
+		h.ctx.Status = 128
+		return
+	}
 	revision := internals.NewRevision(repo, target)
 	targetOid, err := revision.Resolve(internals.REVISION_COMMIT)
 	if err != nil { // TODO: handle the invalidObject error
@@ -57,9 +62,16 @@ func (h *checkoutCommandHandler) run() {
 		return
 	}
 
+	if err := h.repo.Index().WriteUpdates(); err != nil {
+		fmt.Fprintf(h.ctx.Stderr, "Could not update index file: %v\n", err)
+		h.ctx.Status = 128
+		return
+	}
 	if err := repo.Refs().UpdateHead(targetOid); err != nil {
 		fmt.Fprintf(h.ctx.Stderr, "Can't update HEAD %v\n", err)
 		h.ctx.Status = 128
 		return
 	}
+
+	h.ctx.Status = 0
 }

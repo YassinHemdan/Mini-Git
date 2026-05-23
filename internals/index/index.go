@@ -239,10 +239,6 @@ func (idx *Index) storeEntry(entry *IndexEntry) error {
 			idx.parents[parentname][entry.key()] = true
 		}
 	}
-	// else if string(val.GetOid()) != string(entry.GetOid()) || val.GetMode() != entry.GetMode() {
-	// 	// modified
-	// 	idx.entries[entry.key()] = entry
-	// }
 	idx.entries[entry.key()] = entry
 	return nil
 }
@@ -295,7 +291,7 @@ func (idx *Index) replacingFileWithDirectoryCheck(entry *IndexEntry) { // O(L + 
 	}
 
 	pathnameToRemove := parentDirectories[ans]
-	idx.removeEntry(pathnameToRemove) // O(L)
+	idx.Remove(pathnameToRemove) // O(L)
 
 }
 
@@ -318,14 +314,25 @@ func (idx *Index) replacingDirectoryWithFile(entry *IndexEntry) {
 
 	if innerMap, ok := idx.parents[pathname]; ok {
 		for filename := range innerMap { // O(L * N)
-			idx.removeEntry(filename) // O(L)
+			idx.Remove(filename) // O(L)
 		}
 	}
 
 	delete(idx.parents, pathname) // don't forget to remove the parent (directory)
 }
 
-func (idx *Index) removeEntry(pathname string) { // O(L) where n is the length of file's ParentDirectories
+func (idx *Index) removeEntry(pathname string) {
+	delete(idx.keys, pathname)
+	delete(idx.entries, pathname)
+
+	idx.isChanged = true
+}
+
+func (idx *Index) Remove(pathname string) { // O(L) where n is the length of file's ParentDirectories
+	idx.removeEntry(pathname)
+	idx.removeParents(pathname)
+}
+func (idx *Index) removeParents(pathname string) {
 	pathParents := utils.ParentDirectories(pathname)
 	for _, curParent := range pathParents {
 		childsMap := idx.parents[curParent]
@@ -334,8 +341,6 @@ func (idx *Index) removeEntry(pathname string) { // O(L) where n is the length o
 			delete(idx.parents, curParent)
 		}
 	}
-	delete(idx.keys, pathname)
-	delete(idx.entries, pathname)
 }
 
 func (idx *Index) Clear() {
@@ -346,11 +351,6 @@ func (idx *Index) Clear() {
 }
 
 func (idx *Index) getKeysSlice() []string {
-	// result := make([]string, 0)
-	// for k := range idx.keys {
-	// 	result = append(result, k)
-	// }
-
 	result := slices.Collect(maps.Keys(idx.keys))
 	slices.Sort(result)
 
@@ -376,4 +376,23 @@ func (idx *Index) IsTrackedFile(pathname string) bool {
 func (idx *Index) UpdateEntryStat(entry *IndexEntry, stat *syscall.Stat_t) {
 	entry.updateState(stat)
 	idx.isChanged = true
+}
+
+func (idx *Index) GetEntriesWithPrefixName(pathname string) []*IndexEntry {
+	entries := make([]*IndexEntry, 0)
+
+	// pathname might be for a file not a directory
+	_, isFile := idx.keys[pathname]
+	if isFile {
+		entries = append(entries, idx.GetEntry(pathname))
+	} else {
+		_, ok := idx.parents[pathname]
+		if ok {
+			for fullname := range idx.parents[pathname] {
+				entries = append(entries, idx.GetEntry(fullname))
+			}
+		}
+	}
+
+	return entries
 }

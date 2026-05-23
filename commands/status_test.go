@@ -1069,7 +1069,7 @@ func TestStatus_HeadIndexChanges(t *testing.T) {
 		helper.Commit(t, "first commit")
 
 		helper.Delete(t, "1.txt")
-		helper.Delete(t, ".jit/index")
+		// helper.Delete(t, ".jit/index")
 		helper.JitCommand("add", ".")
 
 		assertStatus(t, helper, "D  1.txt\n")
@@ -1083,7 +1083,7 @@ func TestStatus_HeadIndexChanges(t *testing.T) {
 		helper.Commit(t, "first commit")
 
 		helper.Delete(t, "a")
-		helper.Delete(t, ".jit/index")
+		// helper.Delete(t, ".jit/index")
 		helper.JitCommand("add", ".")
 
 		assertStatus(t, helper, format("D ", "a/2.txt")+format("D ", "a/b/3.txt"))

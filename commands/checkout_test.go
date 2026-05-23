@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"JIT/internals/index"
 	"slices"
 	"testing"
 )
@@ -10,7 +11,7 @@ type file struct {
 	content  string
 }
 
-func workspaceFilesSorted(t *testing.T, helper *CommandHelper) []file {
+func workspaceFiles(t *testing.T, helper *CommandHelper) []file {
 	t.Helper()
 	repo := helper.Repo(t)
 	files, err := repo.Workspace().ListFiles("")
@@ -31,6 +32,16 @@ func workspaceFilesSorted(t *testing.T, helper *CommandHelper) []file {
 
 	return result
 }
+
+func indexEntries(t *testing.T, helper *CommandHelper) []*index.IndexEntry {
+	t.Helper()
+	repo := helper.Repo(t)
+	if _, err := repo.Index().Load(); err != nil {
+		t.Fatalf("Could not load index - %v", err)
+	}
+
+	return repo.Index().GetEntries()
+}
 func TestCheckout(t *testing.T) {
 	t.Run("ChangeContents", func(t *testing.T) {
 		helper := NewCommandHelper(t)
@@ -43,7 +54,11 @@ func TestCheckout(t *testing.T) {
 		name3, content3 := "a/nested.txt", "hello world"
 		helper.WriteFile(t, name3, content3) // we will not modify this one
 
+		expectedWorkspace := workspaceFiles(t, helper)
+
 		helper.JitCommand("add", ".")
+		expectedIndex := indexEntries(t, helper)
+
 		helper.Commit(t, "first commit")
 
 		helper.WriteFile(t, name1, content1+"changed")
@@ -53,23 +68,10 @@ func TestCheckout(t *testing.T) {
 		helper.Commit(t, "second commit")
 
 		helper.JitCommand("checkout", "@^")
-		workspaceFiles := workspaceFilesSorted(t, helper)
+		workspaceFiles := workspaceFiles(t, helper)
+		indexEntries := indexEntries(t, helper)
 
-		expected := make([]file, 0)
-		expected = append(expected, file{pathname: name1, content: content1})
-		expected = append(expected, file{pathname: name2, content: content2})
-		expected = append(expected, file{pathname: name3, content: content3})
-
-		slices.SortFunc(expected, func(a, b file) int {
-			if a.pathname < b.pathname {
-				return -1
-			} else if a.pathname > b.pathname {
-				return 1
-			}
-			return 0
-		})
-
-		assertCheckoutCmd(t, workspaceFiles, expected)
+		assertCheckoutCmd(t, workspaceFiles, expectedWorkspace, indexEntries, expectedIndex)
 	})
 	t.Run("RemoveFilesWithChangeContents", func(t *testing.T) {
 		/*
@@ -86,8 +88,10 @@ func TestCheckout(t *testing.T) {
 		helper.WriteFile(t, name2, content2)
 		name3, content3 := "a/nested.txt", "hello world"
 		helper.WriteFile(t, name3, content3) // we will not modify this one
+		expectedWorkspace := workspaceFiles(t, helper)
 
 		helper.JitCommand("add", ".")
+		expectedIndex := indexEntries(t, helper)
 		helper.Commit(t, "first commit")
 
 		helper.WriteFile(t, name1, content1+"changed")
@@ -98,23 +102,10 @@ func TestCheckout(t *testing.T) {
 		helper.Commit(t, "second commit")
 
 		helper.JitCommand("checkout", "@^")
-		workspaceFiles := workspaceFilesSorted(t, helper)
+		workspaceFiles := workspaceFiles(t, helper)
+		index := indexEntries(t, helper)
 
-		expected := make([]file, 0)
-		expected = append(expected, file{pathname: name1, content: content1})
-		expected = append(expected, file{pathname: name2, content: content2})
-		expected = append(expected, file{pathname: name3, content: content3})
-
-		slices.SortFunc(expected, func(a, b file) int {
-			if a.pathname < b.pathname {
-				return -1
-			} else if a.pathname > b.pathname {
-				return 1
-			}
-			return 0
-		})
-
-		assertCheckoutCmd(t, workspaceFiles, expected)
+		assertCheckoutCmd(t, workspaceFiles, expectedWorkspace, index, expectedIndex)
 	})
 	t.Run("CreateFilesWithChangeContents", func(t *testing.T) {
 		/*
@@ -131,48 +122,24 @@ func TestCheckout(t *testing.T) {
 		helper.WriteFile(t, name2, content2)
 		name3, content3 := "a/nested.txt", "hello world"
 		helper.WriteFile(t, name3, content3) // we will not modify this one
+		expectedWorkspace := workspaceFiles(t, helper)
 
 		helper.JitCommand("add", ".")
+		expectedIndex := indexEntries(t, helper)
 		helper.Commit(t, "first commit")
 
 		helper.WriteFile(t, name1, content1+"changed")
 		helper.WriteFile(t, name2, content2+"changed")
 		helper.Delete(t, name3)
 
-		/*
-			for now we will delete the .jit/index before making the second add and commit as we are not handling the
-			index file during the switching, this will be handled soon but for now we will delete the index file before every new commit
-			except for the first one for sure
-		*/
-
-		/*
-			what will happen if we did not delete the index file ?
-			the differences between the two trees of the two commits won't be recognized and by that there won't be any changes
-			done to prepare the workspace to match the tree in the target commit(that contains 3 files) and the current
-			tree will remain the same (with 2 files)
-		*/
-		helper.Delete(t, ".jit/index")
 		helper.JitCommand("add", ".")
 		helper.Commit(t, "second commit")
 
 		helper.JitCommand("checkout", "@^")
-		workspaceFiles := workspaceFilesSorted(t, helper)
+		workspaceFiles := workspaceFiles(t, helper)
+		index := indexEntries(t, helper)
 
-		expected := make([]file, 0)
-		expected = append(expected, file{pathname: name1, content: content1})
-		expected = append(expected, file{pathname: name2, content: content2})
-		expected = append(expected, file{pathname: name3, content: content3})
-
-		slices.SortFunc(expected, func(a, b file) int {
-			if a.pathname < b.pathname {
-				return -1
-			} else if a.pathname > b.pathname {
-				return 1
-			}
-			return 0
-		})
-
-		assertCheckoutCmd(t, workspaceFiles, expected)
+		assertCheckoutCmd(t, workspaceFiles, expectedWorkspace, index, expectedIndex)
 	})
 
 	t.Run("Mix", func(t *testing.T) {
@@ -197,13 +164,15 @@ func TestCheckout(t *testing.T) {
 		// replacing a file with a directory
 		helper.WriteFile(t, "a/nested.txt", "hello from nested.txt")
 
-		expectedC1 := workspaceFilesSorted(t, helper)
+		expectedWorkspaceC1 := workspaceFiles(t, helper)
 
 		helper.JitCommand("add", ".")
+		expectedIndexC1 := indexEntries(t, helper)
 		helper.Commit(t, "first commit")
+
 		helper.JitCommand("branch", "c1", "@")
 
-		helper.Delete(t, ".jit/index")
+		// helper.Delete(t, ".jit/index")
 		helper.Delete(t, "remove.txt")
 		helper.WriteFile(t, "a/todo1.txt", "hello from todo1"+"changed")
 		helper.WriteFile(t, "a/todo2.txt", "hello from todo2"+"changed")
@@ -217,29 +186,33 @@ func TestCheckout(t *testing.T) {
 		helper.WriteFile(t, "a/nested.txt/nes2.txt", "Hello from nes2.txt")
 		helper.WriteFile(t, "a/nested.txt/nes3.txt", "Hello from nes3.txt")
 
-		expectedC2 := workspaceFilesSorted(t, helper)
+		expectedWorkspaceC2 := workspaceFiles(t, helper)
 
 		helper.JitCommand("add", ".")
+		expectedIndexC2 := indexEntries(t, helper)
 		helper.Commit(t, "second commit")
+
 		helper.JitCommand("branch", "c2", "@") // we will be back to it
 
 		helper.JitCommand("checkout", "c1")
-		workspaceFiles := workspaceFilesSorted(t, helper)
-		assertCheckoutCmd(t, workspaceFiles, expectedC1)
-		// helper.Delete(t, ".jit/index")
+		curWorkspaceFiles := workspaceFiles(t, helper)
+		index := indexEntries(t, helper)
+		assertCheckoutCmd(t, curWorkspaceFiles, expectedWorkspaceC1, index, expectedIndexC1)
+
 		helper.JitCommand("checkout", "c2")
-		workspaceFiles = workspaceFilesSorted(t, helper)
-		assertCheckoutCmd(t, workspaceFiles, expectedC2)
+		curWorkspaceFiles = workspaceFiles(t, helper)
+		index = indexEntries(t, helper)
+		assertCheckoutCmd(t, curWorkspaceFiles, expectedWorkspaceC2, index, expectedIndexC2)
 	})
 }
 
-func assertCheckoutCmd(t *testing.T, workspace, expected []file) {
+func assertCheckoutCmd(t *testing.T, workspace, expectedWorkspace []file, index, expectedIndex []*index.IndexEntry) {
 	t.Helper()
-	if len(workspace) != len(expected) {
-		t.Fatalf("expected %d files but found %d\n", len(expected), len(workspace))
+	if len(workspace) != len(expectedWorkspace) {
+		t.Fatalf("expected %d files but found %d\n", len(expectedWorkspace), len(workspace))
 	}
 	for i := 0; i < len(workspace); i++ {
-		expectedFile := expected[i]
+		expectedFile := expectedWorkspace[i]
 		workspaceFile := workspace[i]
 
 		if expectedFile.pathname != workspaceFile.pathname {
@@ -248,5 +221,38 @@ func assertCheckoutCmd(t *testing.T, workspace, expected []file) {
 		if expectedFile.content != workspaceFile.content {
 			t.Fatalf("for file %s: expected content '%s' but found '%s'\n", expectedFile.pathname, expectedFile.content, workspaceFile.content)
 		}
+	}
+
+	if len(index) != len(expectedIndex) {
+		t.Fatalf("expected %d entries but found %d\n", len(expectedIndex), len(index))
+	}
+
+	for i := 0; i < len(index); i++ {
+		expectedEntry := expectedIndex[i]
+		indexEntry := index[i]
+
+		compareIndexEntries(t, indexEntry, expectedEntry)
+	}
+}
+
+func compareIndexEntries(t *testing.T, indexEntry, expectedEntry *index.IndexEntry) {
+	if indexEntry.GetMode() != expectedEntry.GetMode() {
+		t.Fatalf("expected mode %s but found %s\n", expectedEntry.GetMode(), indexEntry.GetMode())
+	}
+
+	if indexEntry.GetName() != expectedEntry.GetName() {
+		t.Fatalf("expected name %s but found %s\n", expectedEntry.GetName(), indexEntry.GetName())
+	}
+
+	if indexEntry.GetPathname() != expectedEntry.GetPathname() {
+		t.Fatalf("expected pathname %s but found %s\n", expectedEntry.GetPathname(), indexEntry.GetPathname())
+	}
+
+	if indexEntry.Type() != expectedEntry.Type() {
+		t.Fatalf("expected type %s but found %s\n", expectedEntry.Type(), indexEntry.Type())
+	}
+
+	if string(indexEntry.GetOid()) != string(expectedEntry.GetOid()) {
+		t.Fatalf("expected oid %s but found %s\n", string(expectedEntry.GetOid()), string(indexEntry.GetOid()))
 	}
 }

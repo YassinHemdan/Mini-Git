@@ -4,10 +4,12 @@ import (
 	"JIT/commands/utils"
 	"JIT/internals"
 	database "JIT/internals/database"
+	"JIT/internals/index"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 )
 
@@ -59,6 +61,13 @@ func (h *addCommandHandler) run() {
 		}
 	}
 
+	// if the current path is a file or a dir that got deleted, we need to remove it from the index
+	if err := h.removeDeletedFiles(); err != nil {
+		fmt.Fprintf(h.ctx.Stderr, "Could not check for deleted files: %v\n", err)
+		h.ctx.Status = 128
+		return
+	}
+
 	if err := h.repo.Index().WriteUpdates(); err != nil {
 		fmt.Fprintf(h.ctx.Stderr, "Could not update index file: %v\n", err)
 		h.ctx.Status = 128
@@ -68,6 +77,33 @@ func (h *addCommandHandler) run() {
 	h.ctx.Status = 0
 }
 
+func (h *addCommandHandler) removeDeletedFiles() error {
+	if h.ctx.Args[0] == "." {
+		h.checkDeletionsAgainstWorkspace(h.repo.Index().GetEntries())
+	} else {
+		for _, path := range h.ctx.Args {
+			entries := h.repo.Index().GetEntriesWithPrefixName(strings.TrimSuffix(path, "/"))
+			err := h.checkDeletionsAgainstWorkspace(entries)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (h *addCommandHandler) checkDeletionsAgainstWorkspace(entries []*index.IndexEntry) error {
+	for _, entry := range entries {
+		exist, err := h.repo.Workspace().IsExist(entry.GetPathname())
+		if err != nil {
+			return err
+		}
+		if !exist {
+			h.repo.Index().Remove(entry.GetPathname())
+		}
+	}
+	return nil
+}
 func (h *addCommandHandler) addToIdx(path string) error {
 	file_content, err := h.repo.Workspace().ReadFile(path)
 	if err != nil {
@@ -100,7 +136,6 @@ func (h *addCommandHandler) addToIdx(path string) error {
 
 	return nil
 }
-
 func (h *addCommandHandler) expandedPaths() ([]string, error) {
 	filesToAdd := make([]string, 0)
 	for _, path := range h.ctx.Args {
@@ -116,7 +151,6 @@ func (h *addCommandHandler) expandedPaths() ([]string, error) {
 	}
 	return filesToAdd, nil
 }
-
 func (h *addCommandHandler) handleError(err error) {
 	var missingFile *utils.MissingFileError
 	var noPermission *utils.NoPermissionError
@@ -132,13 +166,11 @@ func (h *addCommandHandler) handleError(err error) {
 		h.ctx.Status = 128
 	}
 }
-
 func (h *addCommandHandler) handleMissingFile(err *utils.MissingFileError) {
 	fmt.Fprintf(h.ctx.Stderr, "fatal: %s\n", err.Error())
 	h.repo.Index().ReleaseLock()
 	h.ctx.Status = 128
 }
-
 func (h *addCommandHandler) handleUnreadableFile(err *utils.NoPermissionError) {
 	fmt.Fprintf(h.ctx.Stderr, "error: %s\n", err.Error())
 	fmt.Fprintf(h.ctx.Stderr, "fatal: adding files failed\n")

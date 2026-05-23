@@ -4,6 +4,8 @@ import (
 	internals "JIT/internals/database"
 	utils "JIT/internals/utils"
 	ds "JIT/utils/datastructures"
+	"fmt"
+	"syscall"
 )
 
 const (
@@ -22,9 +24,6 @@ type Migration struct {
 
 func newMigration(repo *Repository, diff map[string][]internals.Entry) *Migration {
 	changes := make(map[string][]*ds.Pair[string, internals.Entry])
-	// changes[MIGRATION_CREATE] = make([]*ds.Pair[string, internals.Entry], 0)
-	// changes[MIGRATION_DELETE] = make([]*ds.Pair[string, internals.Entry], 0)
-	// changes[MIGRATION_UPDATE] = make([]*ds.Pair[string, internals.Entry], 0)
 
 	return &Migration{
 		repo:    repo,
@@ -38,6 +37,10 @@ func newMigration(repo *Repository, diff map[string][]internals.Entry) *Migratio
 func (m *Migration) ApplyChanges() error {
 	m.planChanges()
 	if err := m.updateWorkspace(); err != nil {
+		return err
+	}
+
+	if err := m.updateIndex(); err != nil {
 		return err
 	}
 	return nil
@@ -87,6 +90,44 @@ func (m *Migration) recordChange(pathname string, oldEntry, newEntry internals.E
 // the workspace is the one responsible for listing and making modifications to the file system
 func (m *Migration) updateWorkspace() error {
 	return m.repo.Workspace().applyMigration(m)
+}
+
+func (m *Migration) updateIndex() error {
+
+	deleteFromIndex := func(pairs []*ds.Pair[string, internals.Entry]) {
+		for _, pair := range pairs {
+			m.repo.Index().Remove(pair.First)
+		}
+	}
+	addToIndex := func(pairs []*ds.Pair[string, internals.Entry]) error {
+		for _, pair := range pairs {
+			pathname := pair.First
+			oid := pair.Second.GetOid()
+			fileInfo, err := m.repo.Workspace().GetFileState(pathname)
+			if err != nil {
+				return err
+			}
+			stat, ok := fileInfo.Sys().(*syscall.Stat_t)
+
+			if !ok {
+				return fmt.Errorf("could not get system stat for %s", pathname)
+			}
+
+			if err := m.repo.Index().Add(pathname, oid, stat); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	deleteFromIndex(m.changes[MIGRATION_DELETE])
+
+	if err := addToIndex(m.changes[MIGRATION_UPDATE]); err != nil {
+		return err
+	}
+	if err := addToIndex(m.changes[MIGRATION_CREATE]); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (m *Migration) blobData(oid []byte) ([]byte, error) {

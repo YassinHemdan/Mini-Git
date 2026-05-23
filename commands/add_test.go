@@ -111,6 +111,80 @@ func TestAdd_FailsForUnreadableFiles(t *testing.T) {
 	assertIndex(t, helper, [][]any{})
 }
 
+func TestAdd_AddDeletedFiles(t *testing.T) {
+	t.Run("DeleteFilesFromRoot", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.WriteFile(t, "file1.txt", "hello, world1")
+		helper.WriteFile(t, "file2.txt", "hello, world2")
+		helper.WriteFile(t, "file3.txt", "hello, world3")
+		helper.WriteFile(t, "file4.txt", "hello, world4")
+
+		helper.JitCommand("add", ".")
+
+		helper.Delete(t, "file1.txt")
+		helper.Delete(t, "file4.txt")
+
+		helper.JitCommand("add", ".")
+
+		assertIndex(t, helper, [][]any{
+			{"100644", "file2.txt"},
+			{"100644", "file3.txt"},
+		})
+	})
+	t.Run("DeleteDirectoriesFromRoot", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.WriteFile(t, "a/b/c/file1.txt", "hello, world1")
+		helper.WriteFile(t, "a/b/c/file2.txt", "hello, world2")
+		helper.WriteFile(t, "a/b/c/file3.txt", "hello, world3")
+		helper.WriteFile(t, "a/b/d/file4.txt", "hello, world4")
+
+		helper.JitCommand("add", ".")
+
+		helper.Delete(t, "a/b/c")
+
+		helper.JitCommand("add", ".")
+
+		assertIndex(t, helper, [][]any{
+			{"100644", "a/b/d/file4.txt"},
+		})
+
+		helper.Delete(t, "a/b/d/file4.txt")
+
+		helper.JitCommand("add", ".")
+
+		assertIndex(t, helper, [][]any{})
+	})
+
+	t.Run("Mix", func(t *testing.T) {
+		helper := NewCommandHelper(t)
+		helper.WriteFile(t, "a/b/c/file1.txt", "hello, world1")
+		helper.WriteFile(t, "a/b/c/file2.txt", "hello, world2")
+		helper.WriteFile(t, "a/b/c/file3.txt", "hello, world3")
+		helper.WriteFile(t, "a/b/d/file4.txt", "hello, world4")
+
+		helper.WriteFile(t, "sub1/sub2/sub3/file1.txt", "hello, world11")
+		helper.WriteFile(t, "sub1/sub2/sub3/file2.txt", "hello, world22")
+		helper.WriteFile(t, "sub1/sub2/nested/file3.txt", "hello, world33")
+		helper.WriteFile(t, "sub1/sub2/nested/file4.txt", "hello, world44")
+
+		helper.JitCommand("add", ".")
+
+		helper.Delete(t, "a/b/c/file1.txt")
+		helper.Delete(t, "a/b/c/file2.txt")
+		helper.Delete(t, "a/b/c/file3.txt")
+
+		helper.Delete(t, "sub1/sub2/sub3")
+		helper.Delete(t, "sub1/sub2/nested/file4.txt")
+
+		helper.JitCommand("add", "a/b/", "sub1")
+
+		assertIndex(t, helper, [][]any{
+			{"100644", "a/b/d/file4.txt"},
+			{"100644", "sub1/sub2/nested/file3.txt"},
+		})
+	})
+}
+
 func assertIndex(t *testing.T, helper *CommandHelper, expected [][]any) {
 	t.Helper()
 	repo := helper.Repo(t)
