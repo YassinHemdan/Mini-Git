@@ -10,11 +10,12 @@ import (
 )
 
 const (
-	DELETED  = "deleted"
-	MODIFIED = "modified"
-	ADDED    = "new file"
-	GREEN    = "green"
-	RED      = "red"
+	UNTRACKED = "untracked"
+	DELETED   = "deleted"
+	MODIFIED  = "modified"
+	ADDED     = "new file"
+	GREEN     = "green"
+	RED       = "red"
 )
 
 var shortStatusMap map[string]string
@@ -29,6 +30,7 @@ type Status struct {
 	states            map[string]os.FileInfo
 	headTree          map[string]internals.Entry
 	statusSize        int
+	inspector         *Inspector
 }
 
 func newStatus(repo *Repository) (*Status, error) {
@@ -38,6 +40,7 @@ func newStatus(repo *Repository) (*Status, error) {
 		index_changes:     make(map[string]string),
 		workspace_changes: make(map[string]string),
 		headTree:          make(map[string]internals.Entry),
+		inspector:         newInspector(repo),
 	}
 
 	if err := st.scan(""); err != nil {
@@ -57,6 +60,7 @@ func newStatus(repo *Repository) (*Status, error) {
 	return st, nil
 }
 
+// to detect the untracked files or directories
 func (s *Status) scan(dirName string) error {
 	dirEntriesMap, err := s.repo.Workspace().ListDir(dirName)
 	if err != nil {
@@ -90,13 +94,15 @@ func (s *Status) scan(dirName string) error {
 	}
 	return nil
 }
+
+// to check if the a directory is empty or not
+// if there are only nested directories with no files, we consider the higher directory is empty
+// if there is at least one file -> not empty
 func (s *Status) isTrackableFile(entryName string, entryInfo os.FileInfo) (bool, error) {
 	/*
-		a BFS algorithm to check of the current entry has any nested file inside it
+		a BFS algorithm to check if the current entry has any nested file inside it
 		- if the entry itself is a file, return true
 		- if the the entry is a directory, we will run bfs to expand more
-
-		we could use DFS here, but I wanted to get a file ASAP
 	*/
 
 	if !entryInfo.IsDir() {
@@ -127,71 +133,43 @@ func (s *Status) isTrackableFile(entryName string, entryInfo os.FileInfo) (bool,
 	// true + nil => directory is not empty
 	// ... + err => we have a problem :)
 }
+
 func (s *Status) checkIndexEntries() error {
 	indexEntries := s.repo.Index().GetEntries()
 	for _, entry := range indexEntries {
 		if err := s.checkIndexAgainstWorkspace(entry); err != nil {
 			return err
 		}
-		if err := s.checkIndexAgainstHeadTree(entry); err != nil {
-			return err
-		}
+		s.checkIndexAgainstHeadTree(entry)
 	}
 	return nil
 }
+
 func (s *Status) checkIndexAgainstWorkspace(entry *index.IndexEntry) error {
-	info, ok := s.states[entry.GetPathname()] // exists in workspace ? check if it is modified
-	if !ok {
-		// in index but not in workspace ? it means that it got deleted
-		s.recordChange(entry.GetPathname(), s.workspace_changes, DELETED)
-		return nil
+	info, _ := s.states[entry.GetPathname()]
+	status, err := s.inspector.checkIndexAgainstWorkspace(entry, info)
+	if err != nil {
+		return err
 	}
 
-	// check the stat
-	stat := info.Sys().(*syscall.Stat_t)
-	if !entry.IsMatchedStat(stat) {
-		s.recordChange(entry.GetPathname(), s.workspace_changes, MODIFIED)
-		return nil
-	}
-	if !entry.IsMatchedTime(stat) {
-		/*
-			if the timestamps got changed, that does not mean the content got changed
-			there is a case where we can change the content and then revert back again,
-				that means the timestamps changed but the content remains the same
-				so we need to check with the oid (the content itself)
-		*/
-		blob, err := s.createBlob(entry.GetPathname())
-		if err != nil {
-			return err
-		}
-
-		oid, err := s.repo.Database().HashObject(blob)
-		if err != nil {
-			return err
-		}
-		if string(oid) != string(entry.GetOid()) {
-			s.recordChange(entry.GetPathname(), s.workspace_changes, MODIFIED)
-		} else {
-			// content not changed but timestamps got changed.
-			// Update them so that we don't need to visit them again
-			s.repo.Index().UpdateEntryStat(entry, stat)
-		}
-	}
-	return nil
-}
-func (s *Status) checkIndexAgainstHeadTree(indexEntry *index.IndexEntry) error {
-	val, ok := s.headTree[indexEntry.GetPathname()]
-	if !ok {
-		// not committed before
-		s.recordChange(indexEntry.GetPathname(), s.index_changes, ADDED)
+	if status == "" {
+		stat := info.Sys().(*syscall.Stat_t)
+		s.repo.Index().UpdateEntryStat(entry, stat)
 	} else {
-		// committed before, lets check if its content or mode got changed
-		if val.GetMode() != indexEntry.GetMode() || string(val.GetOid()) != string(indexEntry.GetOid()) {
-			s.recordChange(indexEntry.GetPathname(), s.index_changes, MODIFIED)
-		}
+		s.recordChange(entry.GetPathname(), s.workspace_changes, status)
 	}
+
 	return nil
+
 }
+func (s *Status) checkIndexAgainstHeadTree(indexEntry *index.IndexEntry) {
+	val, _ := s.headTree[indexEntry.GetPathname()]
+	status := s.inspector.checkIndexAgainstHeadTree(indexEntry, val)
+	if status != "" {
+		s.recordChange(indexEntry.GetPathname(), s.index_changes, status)
+	}
+}
+
 func (s *Status) collectDeletedHeadFiles() {
 	for pathname := range s.headTree {
 		if !s.repo.Index().IsTrackedFile(pathname) {
@@ -260,14 +238,6 @@ func (s *Status) loadHeadTree() error {
 	}
 
 	return nil
-}
-func (s *Status) createBlob(pathname string) (*internals.Blob, error) {
-	data, err := s.repo.Workspace().ReadFile(pathname)
-	if err != nil {
-		return nil, err
-	}
-	blob := internals.NewBlob(data)
-	return blob, nil
 }
 func (s *Status) GetUntracked() []string {
 	return s.untracked
